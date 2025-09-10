@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<title>Kanban Board</title>
+		<style>
+			:root {
+				--primary: #2563eb;
+				--primary-light: #3b82f6;
+				--secondary: #4b5563;
+				--success: #10b981;
+				--danger: #ef4444;
+				--text: #1f2937;
+				--text-light: #6b7280;
+				--bg: #f9fafb;
+				--column-bg: #f3f4f6;
+				--task-bg: #ffffff;
+				--done-bg: #e5e7eb;
+				--drag-over: #dbeafe;
+				--border: #e5e7eb;
+			}
+
+			body {
+				font-family: 'Segoe UI', system-ui, sans-serif;
+				margin: 0;
+				padding: 16px;
+				color: var(--text);
+				background-color: var(--bg);
+			}
+
+			#board-title {
+				color: var(--text);
+				font-size: 1.5rem;
+				font-weight: 600;
+				margin-bottom: 1.5rem;
+				padding-bottom: 0.5rem;
+				border-bottom: 1px solid var(--border);
+			}
+
+			.board {
+				display: flex;
+				gap: 24px;
+				padding: 8px;
+				overflow-x: auto;
+				min-height: calc(100vh - 180px);
+				align-items: flex-start;
+			}
+
+			.column {
+				border-radius: 8px;
+				border: 1px solid var(--border);
+				padding: 12px;
+				width: 280px;
+				min-height: 60px;
+				background: var(--column-bg);
+				box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+				display: flex;
+				flex-direction: column;
+			}
+
+			.column-content {
+				flex: 1;
+				min-height: 20px;
+			}
+
+			.column-header {
+				display: flex;
+				justify-content: space-between;
+				align-items: center;
+				margin-bottom: 12px;
+				padding-bottom: 8px;
+				border-bottom: 1px solid var(--border);
+			}
+
+			.column h3 {
+				margin: 0;
+				font-size: 1rem;
+				font-weight: 600;
+				color: var(--secondary);
+			}
+
+			.task {
+				padding: 10px;
+				border: 1px solid var(--border);
+				cursor: move;
+				background: var(--task-bg);
+				color: var(--text);
+				margin-bottom: 8px;
+				border-radius: 6px;
+				display: flex;
+				justify-content: space-between;
+				align-items: center;
+				transition: all 0.2s ease;
+				box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+			}
+
+			.task:hover {
+				transform: translateY(-1px);
+				box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+			}
+
+			.task.done {
+				text-decoration: line-through;
+				color: var(--text-light);
+				background: var(--done-bg);
+			}
+
+			.drag-over {
+				background-color: var(--drag-over);
+				box-shadow: inset 0 0 0 2px var(--primary-light);
+			}
+
+			.controls {
+				display: flex;
+				gap: 16px;
+				margin-bottom: 20px;
+				flex-wrap: wrap;
+			}
+
+			.add-task,
+			.add-column {
+				display: flex;
+				gap: 8px;
+				flex: 1;
+				min-width: 300px;
+			}
+
+			.add-task input,
+			.add-column input {
+				flex: 1;
+				padding: 8px 12px;
+				border: 1px solid var(--border);
+				border-radius: 6px;
+				font-size: 0.9rem;
+			}
+
+			button {
+				padding: 8px 16px;
+				border-radius: 6px;
+				border: none;
+				font-weight: 500;
+				cursor: pointer;
+				transition: all 0.2s ease;
+			}
+
+			#add-btn,
+			#add-column-btn {
+				background-color: var(--primary);
+				color: white;
+			}
+
+			#add-btn:hover,
+			#add-column-btn:hover {
+				background-color: var(--primary-light);
+			}
+
+			.remove-btn {
+				background: transparent;
+				border: none;
+				color: var(--danger);
+				font-weight: bold;
+				cursor: pointer;
+				margin-left: 5px;
+				padding: 2px;
+				border-radius: 4px;
+			}
+
+			.remove-btn:hover {
+				background-color: rgba(239, 68, 68, 0.1);
+			}
+		</style>
+	</head>
+	<body>
+		<h1 id="board-title"></h1>
+
+		<div class="controls">
+			<!-- Add new task -->
+			<div class="add-task">
+				<input type="text" id="new-task" placeholder="Enter new task..." />
+				<button id="add-btn">Add Task</button>
+			</div>
+
+			<!-- Add new column -->
+			<div class="add-column">
+				<input type="text" id="new-column" placeholder="Enter column name..." />
+				<button id="add-column-btn">Add Column</button>
+			</div>
+		</div>
+
+		<div id="board" class="board"></div>
+
+		<script>
+			const vscode = acquireVsCodeApi();
+			let dragged = null;
+			let draggedIndex = null;
+			let draggedColumn = null;
+
+			function renderBoard(tasks) {
+				const board = document.getElementById('board');
+				board.innerHTML = '';
+
+				Object.keys(tasks).forEach((column) => {
+					const colEl = document.createElement('div');
+					colEl.className = 'column';
+					colEl.dataset.column = column;
+
+					// Column header with remove button
+					const colHeader = document.createElement('div');
+					colHeader.className = 'column-header';
+
+					const colTitle = document.createElement('h3');
+					colTitle.textContent = column;
+
+					const removeColBtn = document.createElement('button');
+					removeColBtn.textContent = '×';
+					removeColBtn.className = 'remove-btn';
+					removeColBtn.onclick = () =>
+						vscode.postMessage({ command: 'removeColumn', name: column });
+
+					colHeader.appendChild(colTitle);
+					colHeader.appendChild(removeColBtn);
+					colEl.appendChild(colHeader);
+
+					// Drag-and-drop events
+					colEl.addEventListener('dragover', (e) => {
+						e.preventDefault();
+						colEl.classList.add('drag-over');
+					});
+					colEl.addEventListener('dragleave', () => colEl.classList.remove('drag-over'));
+					colEl.addEventListener('drop', () => {
+						colEl.classList.remove('drag-over');
+						if (!dragged) return;
+						vscode.postMessage({
+							command: 'move',
+							fromColumn: draggedColumn,
+							toColumn: column,
+							index: draggedIndex,
+						});
+						dragged = null;
+						// Reset opacity of all tasks in case drag ended without drop
+						document.querySelectorAll('.task').forEach(t => t.style.opacity = '1');
+					});
+
+					// Column content wrapper
+					const colContent = document.createElement('div');
+					colContent.className = 'column-content';
+					colEl.appendChild(colContent);
+
+					// Tasks
+					tasks[column].forEach((task, index) => {
+						const taskEl = document.createElement('div');
+						taskEl.className = 'task ' + (task.done ? 'done' : '');
+
+						// Task text
+						const textEl = document.createElement('span');
+						textEl.textContent = task.text;
+						textEl.style.flex = '1';
+						textEl.onclick = () => vscode.postMessage({ command: 'toggle', column, index });
+
+						// Remove task button
+						const removeBtn = document.createElement('button');
+						removeBtn.textContent = '×';
+						removeBtn.className = 'remove-btn';
+						removeBtn.onclick = (e) => {
+							e.stopPropagation();
+							vscode.postMessage({ command: 'remove', column, index });
+						};
+
+						taskEl.appendChild(textEl);
+						taskEl.appendChild(removeBtn);
+
+						// Drag-and-drop for task
+						taskEl.draggable = true;
+						taskEl.addEventListener('dragstart', () => {
+							dragged = task;
+							draggedIndex = index;
+							draggedColumn = column;
+							taskEl.style.opacity = '0.4';
+						});
+
+						taskEl.addEventListener('dragend', () => {
+							taskEl.style.opacity = '1';
+						});
+
+						colContent.appendChild(taskEl);
+					});
+
+					// Ensure empty column placeholder so column is visible
+					if (tasks[column].length === 0) {
+					}
+
+					board.appendChild(colEl);
+				});
+			}
+
+			// Add task
+			const addInput = document.getElementById('new-task');
+			const addBtn = document.getElementById('add-btn');
+			addBtn.addEventListener('click', () => {
+				const text = addInput.value.trim();
+				if (text) {
+					vscode.postMessage({ command: 'add', column: 'Todo', text });
+					addInput.value = '';
+				}
+			});
+			addInput.addEventListener('keypress', (e) => {
+				if (e.key === 'Enter') addBtn.click();
+			});
+
+			// Add column
+			const addColInput = document.getElementById('new-column');
+			const addColBtn = document.getElementById('add-column-btn');
+			addColBtn.addEventListener('click', () => {
+				const name = addColInput.value.trim();
+				if (name) {
+					vscode.postMessage({ command: 'addColumn', name });
+					addColInput.value = '';
+				}
+			});
+			addColInput.addEventListener('keypress', (e) => {
+				if (e.key === 'Enter') addColBtn.click();
+			});
+
+			// Listen for updates from extension
+			window.addEventListener('message', (event) => {
+				const message = event.data;
+				if (message.command === 'update') renderBoard(message.tasks);
+			});
+
+			// Show workspace/project name
+			if (typeof workspaceName !== 'undefined') {
+				document.getElementById('board-title').textContent = workspaceName + ' Kanban Board';
+			}
+		</script>
+	</body>
+</html>
