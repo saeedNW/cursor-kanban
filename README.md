@@ -76,13 +76,11 @@ No user settings yet. The task file path is currently fixed to `tasks.md` in the
 ## Known limitations
 
 - Task file path is not yet configurable.
-- Drag‑and‑drop between columns is not implemented.
 - On first activation, the extension will create a `tasks.md` with default columns if missing.
 
 ## Roadmap
 
 - Configurable task file path
-- Drag‑and‑drop between columns
 - Per‑column WIP limits and color accents
 - Filtering and search
 
@@ -94,14 +92,6 @@ Scripts:
 - `npm run watch` — build in watch mode
 - `npm run lint` — run ESLint on `src`
 - `npm test` — run VS Code extension tests
-
-## Testing
-
-Run the full test suite:
-
-```bash
-npm test
-```
 
 Note: `pretest` compiles the project and runs ESLint before executing tests.
 
