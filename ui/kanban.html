@@ -21,6 +21,23 @@
 				--border: #e5e7eb;
 			}
 
+			/* Dark theme variables */
+			[data-theme='dark'] {
+				--primary: #3b82f6;
+				--primary-light: #60a5fa;
+				--secondary: #9ca3af;
+				--success: #34d399;
+				--danger: #f87171;
+				--text: #f9fafb;
+				--text-light: #9ca3af;
+				--bg: #111827;
+				--column-bg: #1f2937;
+				--task-bg: #374151;
+				--done-bg: #4b5563;
+				--drag-over: #1e40af;
+				--border: #4b5563;
+			}
+
 			/* ---------------------- Layout ---------------------- */
 			body {
 				font-family: 'Segoe UI', system-ui, sans-serif;
@@ -179,12 +196,14 @@
 				border-radius: 6px;
 				font-size: 0.9rem;
 				flex: 1;
+				background: var(--task-bg);
+				color: var(--text);
 			}
 
 			.add-column input:focus {
 				outline: none;
 				border-color: var(--primary-light);
-				box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.2);
+				box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
 			}
 
 			.add-column button {
@@ -217,7 +236,7 @@
 			}
 
 			.modal {
-				background: white;
+				background: var(--task-bg);
 				padding: 20px;
 				border-radius: 8px;
 				width: 650px;
@@ -226,6 +245,7 @@
 				flex-direction: column;
 				gap: 12px;
 				max-height: 900px;
+				color: var(--text);
 			}
 
 			.modal-header {
@@ -247,6 +267,16 @@
 				border-radius: 6px;
 				font-size: 0.9rem;
 				width: 100%;
+				background: var(--task-bg);
+				color: var(--text);
+			}
+
+			.modal input:focus,
+			.modal select:focus,
+			.modal textarea:focus {
+				outline: none;
+				border-color: var(--primary-light);
+				box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
 			}
 
 			#new-task,
@@ -260,7 +290,8 @@
 
 			#info-description {
 				white-space: pre-wrap;
-				background: #f3f4f6;
+				background: var(--column-bg);
+				color: var(--text);
 				padding: 8px;
 				border-radius: 4px;
 				min-height: 40px;
@@ -277,6 +308,7 @@
 				scrollbar-width: thin;
 				scrollbar-color: #888 #f1f1f1;
 				flex-shrink: 0;
+				color: var(--text);
 			}
 
 			#new-comment-input {
@@ -295,6 +327,10 @@
 				<input type="text" id="new-column" placeholder="Enter column name..." />
 				<button id="add-column-btn">+ Add Column</button>
 			</div>
+
+			<button id="theme-toggle" class="btn-secondary" title="Toggle dark/light theme">
+				🌙 Dark
+			</button>
 		</div>
 
 		<div id="board" class="board"></div>
@@ -611,9 +647,9 @@
 						const commentDiv = document.createElement('div');
 						commentDiv.style.margin = '5px 0';
 						commentDiv.style.padding = '8px';
-						commentDiv.style.border = '1px solid #e5e7eb';
+						commentDiv.style.border = '1px solid var(--border)';
 						commentDiv.style.borderRadius = '4px';
-						commentDiv.style.backgroundColor = '#f9fafb';
+						commentDiv.style.backgroundColor = 'var(--column-bg)';
 						commentDiv.style.position = 'relative';
 
 						const commentText = document.createElement('div');
@@ -803,6 +839,42 @@
 			if (typeof workspaceName !== 'undefined') {
 				document.getElementById('board-title').textContent = workspaceName + ' Kanban Board';
 			}
+
+			/** ---------------------- Theme Management ---------------------- */
+			const themeToggle = document.getElementById('theme-toggle');
+			const body = document.body;
+
+			// Initialize theme from localStorage or default to light
+			function initializeTheme() {
+				const savedTheme = localStorage.getItem('kanban-theme') || 'light';
+				setTheme(savedTheme);
+			}
+
+			// Set theme and update UI
+			function setTheme(theme) {
+				body.setAttribute('data-theme', theme);
+				localStorage.setItem('kanban-theme', theme);
+
+				// Update toggle button text and icon
+				if (theme === 'dark') {
+					themeToggle.innerHTML = '☀️ Light';
+				} else {
+					themeToggle.innerHTML = '🌙 Dark';
+				}
+			}
+
+			// Toggle between light and dark themes
+			function toggleTheme() {
+				const currentTheme = body.getAttribute('data-theme');
+				const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+				setTheme(newTheme);
+			}
+
+			// Event listener for theme toggle
+			themeToggle.addEventListener('click', toggleTheme);
+
+			// Initialize theme on page load
+			initializeTheme();
 
 			/** ---------------------- Auto-pairing for input fields ---------------------- */
 			function enableAutoPair(inputEl) {
