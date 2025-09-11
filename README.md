@@ -7,7 +7,17 @@ Cursor Kanban renders a clean, interactive Kanban view powered by a simple Markd
 ## Features
 
 - **Instant Kanban from Markdown**: Columns map to `##` headings; tasks are `- [ ]` list items.
-- **Two‑way sync**: Toggle tasks on the board and the underlying `tasks.md` updates immediately.
+- **Two‑way sync**: Manage tasks on the board and the underlying `tasks.md` updates immediately.
+- **Task Priority System**: 5-level priority system with color-coded badges (Highest, High, Medium, Low, Lowest).
+- **Task Notes**: Add detailed descriptions and notes to your tasks.
+- **Modern UI**: Clean, intuitive interface with drag-and-drop support.
+- **Add/Remove Columns**: Create or delete columns directly from the board.
+- **Task Info Modal**: Click a task title to view priority, status, and multi-line notes.
+- **Auto Text Direction**: Detects RTL/LTR from the first character for titles and notes.
+- **Input Auto‑Pairing**: Smart pairing for (), {}, [], quotes, and backticks in inputs.
+- **Keyboard Shortcuts**: Enter to submit inputs; Esc to close modals.
+- **Workspace Title**: Shows the current workspace name at the top of the board.
+- **Quick Remove**: Remove tasks with a single click.
 - **Zero learning curve**: Keep using your favorite Markdown workflows and tools.
 - **Single command**: Open the board from the Command Palette.
 
@@ -15,7 +25,7 @@ Cursor Kanban renders a clean, interactive Kanban view powered by a simple Markd
 
 - On activation, the extension reads `tasks.md` from the workspace/extension folder.
 - It parses sections split by `## <Column Name>` and checklist items under each section.
-- A webview displays the Kanban board; clicking a task toggles its done state and writes changes back to `tasks.md`.
+- A webview displays the Kanban board. Dragging a task to the `Done` column marks it completed; moving it out clears completion. All changes are written back to `tasks.md`.
 
 ## Installation
 
@@ -23,7 +33,7 @@ You can install the extension in two ways:
 
 1. From VSIX
 
-   - Download or build the `.vsix` file (e.g., `cursor-kanban-0.0.1.vsix`).
+   - Download or build the `.vsix` file.
    - In VS Code/Cursor: Extensions panel → ••• menu → "Install from VSIX..." → select the file.
 
 2. From source (development)
@@ -35,7 +45,7 @@ You can install the extension in two ways:
 
 1. Create a `tasks.md` at the project root (or extension folder) with columns and tasks.
 2. Open the Command Palette and run: "Cursor Kanban: Open Board".
-3. Click a task to toggle completion. Changes are saved back to `tasks.md`.
+3. Drag tasks between columns. Click a task title to view details. Use the × button to remove a task. Changes are saved back to `tasks.md`.
 
 ## Task file format (tasks.md)
 
@@ -45,21 +55,24 @@ Create columns with level‑2 headings and tasks as Markdown checkboxes:
 ## Todo
 
 - [ ] Write parser
-- [ ] Design webview
+- [ ] Design webview [Priority: Medium]
+      This is a critical component for the project
 
 ## In Progress
 
-- [ ] Hook up toggle
+- [ ] Hook up toggle [Priority: Medium]
 
 ## Done
 
-- [x] Initialize project
+- [x] Initialize project [Priority: Low]
 ```
 
 Notes:
 
 - Columns are introduced by `##` (level‑2) headings.
 - Tasks must be list items starting with `- [ ]` or `- [x]`.
+- Priority and notes are automatically managed by the extension.
+- The extension supports 5 priority levels: Highest, High, Medium, Low, Lowest.
 
 ## Commands
 

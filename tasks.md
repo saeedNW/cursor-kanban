@@ -1,13 +1,16 @@
 ## Todo
-
-- [ ] Task 1
-- [ ] task 3
+- [ ] Task 1 [Priority: Medium]
+- [ ] task 3 [Priority: Medium]
+- [ ] kvkgiugi` [Priority: Medium]
+      ihoihhoihiolhliho
+- [ ] ewewe [Priority: Medium]
 
 ## In Progress
-
-- [ ] task 5
+- [ ] task 5 [Priority: Medium]
+- [ ] yyeuwe [Priority: Medium]
 
 ## Done
+- [x] Task 3 [Priority: Medium]
+- [x] Task 4 [Priority: Medium]
+- [x] 55 [Priority: Low]
 
-- [x] Task 3
-- [x] Task 4

@@ -23,7 +23,12 @@ suite('Kanban', () => {
 
 		let tasks = kb.getTasks();
 		assert.strictEqual(tasks['Todo'].length, 2);
-		assert.deepStrictEqual(tasks['Todo'][0], { text: 'write tests', done: false });
+		assert.deepStrictEqual(tasks['Todo'][0], {
+			text: 'write tests',
+			done: false,
+			priority: 'Medium',
+			notes: undefined,
+		});
 
 		kb.toggleDone('Todo', 0);
 		assert.strictEqual(kb.getTasks()['Todo'][0].done, true);
@@ -37,11 +42,20 @@ suite('Kanban', () => {
 		kb.removeTask('Todo', 0);
 		tasks = kb.getTasks();
 		assert.strictEqual(tasks['Todo'].length, 1);
-		assert.deepStrictEqual(tasks['Todo'][0], { text: 'refactor', done: true });
+		assert.deepStrictEqual(tasks['Todo'][0], {
+			text: 'refactor',
+			done: true,
+			priority: 'Medium',
+			notes: undefined,
+		});
 
 		// persisted
 		const persisted = readTasks(filePath);
-		assert.deepStrictEqual(persisted['Todo'][0], { text: 'refactor', done: true });
+		assert.deepStrictEqual(persisted['Todo'][0], {
+			text: 'refactor',
+			done: true,
+			priority: 'Medium',
+		});
 	});
 
 	test('moveTask between columns persists correctly', () => {
@@ -55,12 +69,21 @@ suite('Kanban', () => {
 		let tasks = kb.getTasks();
 		assert.strictEqual(tasks['Todo'].length, 1);
 		assert.strictEqual(tasks['In Progress'].length, 1);
-		assert.deepStrictEqual(tasks['In Progress'][0], { text: 'task 1', done: false });
+		assert.deepStrictEqual(tasks['In Progress'][0], {
+			text: 'task 1',
+			done: false,
+			priority: 'Medium',
+			notes: undefined,
+		});
 
 		// persisted
 		const persisted = readTasks(filePath);
 		assert.strictEqual(persisted['In Progress'].length, 1);
-		assert.deepStrictEqual(persisted['In Progress'][0], { text: 'task 1', done: false });
+		assert.deepStrictEqual(persisted['In Progress'][0], {
+			text: 'task 1',
+			done: false,
+			priority: 'Medium',
+		});
 	});
 
 	test('addColumn and removeColumn update file', () => {

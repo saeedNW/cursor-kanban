@@ -4,6 +4,7 @@
 		<meta charset="UTF-8" />
 		<title>Kanban Board</title>
 		<style>
+			/* ---------------------- Variables ---------------------- */
 			:root {
 				--primary: #2563eb;
 				--primary-light: #3b82f6;
@@ -20,6 +21,7 @@
 				--border: #e5e7eb;
 			}
 
+			/* ---------------------- Layout ---------------------- */
 			body {
 				font-family: 'Segoe UI', system-ui, sans-serif;
 				margin: 0;
@@ -58,11 +60,6 @@
 				flex-direction: column;
 			}
 
-			.column-content {
-				flex: 1;
-				min-height: 20px;
-			}
-
 			.column-header {
 				display: flex;
 				justify-content: space-between;
@@ -79,6 +76,11 @@
 				color: var(--secondary);
 			}
 
+			.column-content {
+				flex: 1;
+				min-height: 20px;
+			}
+
 			.task {
 				padding: 10px;
 				border: 1px solid var(--border);
@@ -90,7 +92,7 @@
 				display: flex;
 				justify-content: space-between;
 				align-items: center;
-				transition: all 0.2s ease;
+				transition: transform 0.2s ease, opacity 0.2s ease;
 				box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
 			}
 
@@ -105,6 +107,16 @@
 				background: var(--done-bg);
 			}
 
+			.task.placeholder {
+				background: rgba(37, 99, 235, 0.2);
+				border: 2px dashed var(--primary);
+				box-shadow: none;
+				height: 40px;
+				margin-bottom: 8px;
+				border-radius: 6px;
+				transition: all 0.2s ease;
+			}
+
 			.drag-over {
 				background-color: var(--drag-over);
 				box-shadow: inset 0 0 0 2px var(--primary-light);
@@ -117,23 +129,6 @@
 				flex-wrap: wrap;
 			}
 
-			.add-task,
-			.add-column {
-				display: flex;
-				gap: 8px;
-				flex: 1;
-				min-width: 300px;
-			}
-
-			.add-task input,
-			.add-column input {
-				flex: 1;
-				padding: 8px 12px;
-				border: 1px solid var(--border);
-				border-radius: 6px;
-				font-size: 0.9rem;
-			}
-
 			button {
 				padding: 8px 16px;
 				border-radius: 6px;
@@ -143,15 +138,18 @@
 				transition: all 0.2s ease;
 			}
 
-			#add-btn,
-			#add-column-btn {
+			.btn-primary {
 				background-color: var(--primary);
 				color: white;
 			}
 
-			#add-btn:hover,
-			#add-column-btn:hover {
+			.btn-primary:hover {
 				background-color: var(--primary-light);
+			}
+
+			.btn-secondary {
+				background: var(--done-bg);
+				color: var(--text);
 			}
 
 			.remove-btn {
@@ -168,46 +166,227 @@
 			.remove-btn:hover {
 				background-color: rgba(239, 68, 68, 0.1);
 			}
+
+			.add-column {
+				display: flex;
+				gap: 8px;
+				align-items: center;
+			}
+
+			.add-column input {
+				padding: 8px 12px;
+				border: 1px solid var(--border);
+				border-radius: 6px;
+				font-size: 0.9rem;
+				flex: 1;
+			}
+
+			.add-column input:focus {
+				outline: none;
+				border-color: var(--primary-light);
+				box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.2);
+			}
+
+			.add-column button {
+				padding: 8px 16px;
+				border-radius: 6px;
+				border: none;
+				background-color: var(--success);
+				color: white;
+				font-weight: 500;
+				cursor: pointer;
+				transition: all 0.2s ease;
+			}
+
+			.add-column button:hover {
+				background-color: #059669;
+			}
+
+			/* ---------------------- Modal ---------------------- */
+			.modal-backdrop {
+				position: fixed;
+				top: 0;
+				left: 0;
+				width: 100%;
+				height: 100%;
+				background: rgba(0, 0, 0, 0.5);
+				display: none;
+				justify-content: center;
+				align-items: center;
+				z-index: 1000;
+			}
+
+			.modal {
+				background: white;
+				padding: 20px;
+				border-radius: 8px;
+				width: 400px;
+				box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+				display: flex;
+				flex-direction: column;
+				gap: 12px;
+			}
+
+			.modal-header {
+				font-size: 1.2rem;
+				font-weight: 600;
+			}
+
+			.modal-actions {
+				display: flex;
+				justify-content: flex-end;
+				gap: 10px;
+			}
+
+			.modal input,
+			.modal select,
+			.modal textarea {
+				padding: 8px 12px;
+				border: 1px solid var(--border);
+				border-radius: 6px;
+				font-size: 0.9rem;
+				width: 100%;
+			}
+
+			#new-task,
+			#new-task-notes {
+				width: 93%;
+			}
+
+			#info-description {
+				white-space: pre-wrap;
+				background: #f3f4f6;
+				padding: 8px;
+				border-radius: 4px;
+				min-height: 40px;
+				line-break: anywhere;
+			}
+
+			#info-title {
+				display: inline;
+			}
 		</style>
 	</head>
 	<body>
 		<h1 id="board-title"></h1>
 
 		<div class="controls">
-			<!-- Add new task -->
-			<div class="add-task">
-				<input type="text" id="new-task" placeholder="Enter new task..." />
-				<button id="add-btn">Add Task</button>
-			</div>
+			<button id="open-task-modal" class="btn-primary">+ Add Task</button>
 
-			<!-- Add new column -->
 			<div class="add-column">
 				<input type="text" id="new-column" placeholder="Enter column name..." />
-				<button id="add-column-btn">Add Column</button>
+				<button id="add-column-btn">+ Add Column</button>
 			</div>
 		</div>
 
 		<div id="board" class="board"></div>
 
+		<!-- Modal for creating tasks -->
+		<div id="task-modal" class="modal-backdrop">
+			<div class="modal">
+				<div class="modal-header">Create New Task</div>
+				<input type="text" id="new-task" placeholder="Task description..." />
+				<select id="new-task-priority">
+					<option value="Highest">Highest</option>
+					<option value="High">High</option>
+					<option value="Medium" selected>Medium</option>
+					<option value="Low">Low</option>
+					<option value="Lowest">Lowest</option>
+				</select>
+				<textarea id="new-task-notes" placeholder="Task notes..." rows="3"></textarea>
+				<select id="new-task-column"></select>
+				<div class="modal-actions">
+					<button id="cancel-task" class="btn-secondary">Cancel</button>
+					<button id="add-btn" class="btn-primary">Add Task</button>
+				</div>
+			</div>
+		</div>
+
+		<!-- Modal for task info -->
+		<div id="task-info-modal" class="modal-backdrop">
+			<div class="modal">
+				<div class="modal-header">Task Info</div>
+				<div>
+					<strong>Title:</strong>
+					<p id="info-title"></p>
+				</div>
+				<div><strong>Priority:</strong> <span id="info-priority"></span></div>
+				<div><strong>Status:</strong> <span id="info-status"></span></div>
+				<div><strong>Description:</strong></div>
+				<div id="info-description"></div>
+				<div class="modal-actions">
+					<button id="close-info" class="btn-secondary">Close</button>
+				</div>
+			</div>
+		</div>
+
 		<script>
+			/**
+			 * VS Code Webview API
+			 */
 			const vscode = acquireVsCodeApi();
+
+			/** Drag state */
 			let dragged = null;
 			let draggedIndex = null;
 			let draggedColumn = null;
 
+			/** Current tasks snapshot */
+			let currentTasks = {};
+
+			/**
+			 * Apply correct text direction based on first character
+			 * @param {HTMLElement} el - The element to apply direction
+			 * @param {string} text - The text content
+			 */
+			function applyDirection(el, text) {
+				console.log(el.textContent);
+				el.textContent = text;
+				if (!text) return;
+				console.log(el.textContent);
+
+				// Regex for Persian/Arabic characters
+				const persianRegex = /^[\u0600-\u06FF]/;
+
+				if (persianRegex.test(text[0])) {
+					el.style.direction = 'rtl';
+					el.style.textAlign = 'left';
+				} else {
+					el.style.direction = 'ltr';
+					el.style.textAlign = 'left';
+				}
+
+				console.log(el);
+			}
+
+			/**
+			 * Render the Kanban board and set up drag/drop and modal logic
+			 * @param {Object} tasks Tasks grouped by column
+			 */
 			function renderBoard(tasks) {
+				currentTasks = tasks; // store latest tasks for modals
 				const board = document.getElementById('board');
 				board.innerHTML = '';
 
-				Object.keys(tasks).forEach((column) => {
+				// Populate column dropdown for task modal
+				const colSelect = document.getElementById('new-task-column');
+				colSelect.innerHTML = '';
+				Object.keys(tasks).forEach((col) => {
+					const opt = document.createElement('option');
+					opt.value = col;
+					opt.textContent = col;
+					colSelect.appendChild(opt);
+				});
+
+				// Render each column
+				Object.entries(tasks).forEach(([column, taskList]) => {
 					const colEl = document.createElement('div');
 					colEl.className = 'column';
 					colEl.dataset.column = column;
 
-					// Column header with remove button
+					// Column header
 					const colHeader = document.createElement('div');
 					colHeader.className = 'column-header';
-
 					const colTitle = document.createElement('h3');
 					colTitle.textContent = column;
 
@@ -221,41 +400,123 @@
 					colHeader.appendChild(removeColBtn);
 					colEl.appendChild(colHeader);
 
-					// Drag-and-drop events
-					colEl.addEventListener('dragover', (e) => {
-						e.preventDefault();
-						colEl.classList.add('drag-over');
-					});
-					colEl.addEventListener('dragleave', () => colEl.classList.remove('drag-over'));
-					colEl.addEventListener('drop', () => {
-						colEl.classList.remove('drag-over');
-						if (!dragged) return;
-						vscode.postMessage({
-							command: 'move',
-							fromColumn: draggedColumn,
-							toColumn: column,
-							index: draggedIndex,
-						});
-						dragged = null;
-						// Reset opacity of all tasks in case drag ended without drop
-						document.querySelectorAll('.task').forEach(t => t.style.opacity = '1');
-					});
-
-					// Column content wrapper
+					// Column content
 					const colContent = document.createElement('div');
 					colContent.className = 'column-content';
 					colEl.appendChild(colContent);
 
-					// Tasks
-					tasks[column].forEach((task, index) => {
+					// Create a global placeholder for drag-and-drop
+					let placeholder = document.createElement('div');
+					placeholder.className = 'task placeholder';
+					placeholder.style.height = '40px';
+					placeholder.style.marginBottom = '8px';
+					placeholder.style.border = '2px dashed var(--primary)';
+					placeholder.style.borderRadius = '6px';
+					placeholder.style.transition = 'all 0.2s ease';
+					placeholder.style.background = 'rgba(37, 99, 235, 0.2)';
+
+					// ---------------------- Column Drag Events ----------------------
+					// Drag events for column
+					colEl.addEventListener('dragover', (e) => {
+						e.preventDefault();
+						colEl.classList.add('drag-over');
+
+						const colContent = colEl.querySelector('.column-content');
+
+						// Filter out placeholder and dragged element
+						const taskEls = Array.from(colContent.children).filter(
+							(c) => !c.classList.contains('placeholder') && c !== dragged?.element,
+						);
+
+						let toIndex = taskEls.length;
+
+						for (let i = 0; i < taskEls.length; i++) {
+							const rect = taskEls[i].getBoundingClientRect();
+							if (e.clientY < rect.top + rect.height / 2) {
+								toIndex = i;
+								break;
+							}
+						}
+
+						// Remove old placeholder
+						const old = colContent.querySelector('.placeholder');
+						if (old) colContent.removeChild(old);
+
+						// Insert placeholder at calculated position
+						if (toIndex >= taskEls.length) {
+							colContent.appendChild(placeholder);
+						} else {
+							colContent.insertBefore(placeholder, taskEls[toIndex]);
+						}
+
+						placeholder.style.display = 'block';
+					});
+
+					colEl.addEventListener('dragleave', () => colEl.classList.remove('drag-over'));
+
+					colEl.addEventListener('drop', (e) => {
+						e.preventDefault();
+						colEl.classList.remove('drag-over');
+
+						if (!dragged) return;
+
+						const colContent = colEl.querySelector('.column-content');
+
+						// Filter out placeholder and dragged element
+						const taskEls = Array.from(colContent.children).filter(
+							(c) => !c.classList.contains('placeholder') && c !== dragged.element,
+						);
+
+						// Compute toIndex
+						let toIndex = Array.from(colContent.children).indexOf(placeholder);
+
+						vscode.postMessage({
+							command: 'move',
+							fromColumn: draggedColumn,
+							toColumn: column,
+							fromIndex: draggedIndex,
+							toIndex: toIndex,
+						});
+
+						// Reset drag state
+						dragged = null;
+						draggedIndex = null;
+						draggedColumn = null;
+
+						// Remove placeholder
+						if (placeholder.parentElement) placeholder.parentElement.removeChild(placeholder);
+					});
+
+					// ---------------------- Render Tasks ----------------------
+					taskList.forEach((task, index) => {
 						const taskEl = document.createElement('div');
 						taskEl.className = 'task ' + (task.done ? 'done' : '');
+						taskEl.draggable = true;
 
-						// Task text
+						// Task title element
 						const textEl = document.createElement('span');
-						textEl.textContent = task.text;
+						applyDirection(textEl, task.text);
 						textEl.style.flex = '1';
-						textEl.onclick = () => vscode.postMessage({ command: 'toggle', column, index });
+
+						// Show task info modal
+						textEl.onclick = () => showTaskInfoModal(task, column);
+
+						// Priority badge
+						const badge = document.createElement('span');
+						badge.textContent = task.priority;
+						badge.style.marginLeft = '8px';
+						badge.style.fontSize = '0.75rem';
+						badge.style.padding = '2px 6px';
+						badge.style.borderRadius = '4px';
+						badge.style.color = 'white';
+						const colors = {
+							Highest: '#B91C1C',
+							High: '#EA580C',
+							Medium: '#F59E0B',
+							Low: '#2563EB',
+							Lowest: '#047857',
+						};
+						badge.style.backgroundColor = colors[task.priority] || '#F59E0B';
 
 						// Remove task button
 						const removeBtn = document.createElement('button');
@@ -267,70 +528,183 @@
 						};
 
 						taskEl.appendChild(textEl);
+						taskEl.appendChild(badge);
 						taskEl.appendChild(removeBtn);
 
-						// Drag-and-drop for task
-						taskEl.draggable = true;
+						// Drag events for task
 						taskEl.addEventListener('dragstart', () => {
-							dragged = task;
+							dragged = { task, element: taskEl };
 							draggedIndex = index;
 							draggedColumn = column;
 							taskEl.style.opacity = '0.4';
 						});
-
-						taskEl.addEventListener('dragend', () => {
-							taskEl.style.opacity = '1';
-						});
+						taskEl.addEventListener('dragend', () => (taskEl.style.opacity = '1'));
 
 						colContent.appendChild(taskEl);
 					});
-
-					// Ensure empty column placeholder so column is visible
-					if (tasks[column].length === 0) {
-					}
 
 					board.appendChild(colEl);
 				});
 			}
 
-			// Add task
-			const addInput = document.getElementById('new-task');
+			/** ---------------------- Task Info Modal ---------------------- */
+			/**
+			 * Show Task Info Modal
+			 * @param {Object} task Task object
+			 * @param {string} column Column name of the task
+			 */
+			function showTaskInfoModal(task, column) {
+				const taskInfoModal = document.getElementById('task-info-modal');
+				applyDirection(document.getElementById('info-title'), task.text);
+				document.getElementById('info-priority').textContent = task.priority;
+				document.getElementById('info-status').textContent = column;
+
+				const descEl = document.getElementById('info-description');
+				if (task.notes) {
+					const lines = task.notes.split('\n');
+					descEl.innerHTML = lines
+						.map((line) => {
+							// Wrap each line in <p> and apply direction
+							const p = document.createElement('p');
+							p.style.margin = '7px 0';
+							applyDirection(p, line);
+							return p.outerHTML;
+						})
+						.join('');
+				} else {
+					descEl.textContent = '(No description)';
+				}
+
+				// Close modal on clicking close button
+				const closeInfoBtn = document.getElementById('close-info');
+				closeInfoBtn.onclick = () => (taskInfoModal.style.display = 'none');
+
+				// Click outside modal content closes it
+				taskInfoModal.onclick = (e) => {
+					if (e.target === taskInfoModal) taskInfoModal.style.display = 'none';
+				};
+
+				taskInfoModal.style.display = 'flex';
+			}
+
+			/** ---------------------- Task Modal Logic ---------------------- */
+			const taskModal = document.getElementById('task-modal');
+			const openTaskModalBtn = document.getElementById('open-task-modal');
+			const cancelTaskBtn = document.getElementById('cancel-task');
 			const addBtn = document.getElementById('add-btn');
+			const addInput = document.getElementById('new-task');
+			const prioritySelect = document.getElementById('new-task-priority');
+			const columnSelect = document.getElementById('new-task-column');
+			const notesInput = document.getElementById('new-task-notes');
+
+			openTaskModalBtn.addEventListener('click', () => {
+				taskModal.style.display = 'flex';
+				addInput.focus();
+			});
+			cancelTaskBtn.addEventListener('click', () => {
+				taskModal.style.display = 'none';
+				resetTaskModal();
+			});
 			addBtn.addEventListener('click', () => {
 				const text = addInput.value.trim();
-				if (text) {
-					vscode.postMessage({ command: 'add', column: 'Todo', text });
-					addInput.value = '';
-				}
-			});
-			addInput.addEventListener('keypress', (e) => {
-				if (e.key === 'Enter') addBtn.click();
+				const priority = prioritySelect.value;
+				const column = columnSelect.value;
+				const notes = notesInput.value.trim();
+				if (!text || !column) return;
+				vscode.postMessage({ command: 'add', column, text, priority, notes });
+				taskModal.style.display = 'none';
+				resetTaskModal();
 			});
 
-			// Add column
+			/**
+			 * Reset task modal inputs to default state
+			 */
+			function resetTaskModal() {
+				addInput.value = '';
+				prioritySelect.value = 'Medium';
+				notesInput.value = '';
+			}
+
+			/** ---------------------- Add Column Logic ---------------------- */
 			const addColInput = document.getElementById('new-column');
 			const addColBtn = document.getElementById('add-column-btn');
 			addColBtn.addEventListener('click', () => {
 				const name = addColInput.value.trim();
-				if (name) {
-					vscode.postMessage({ command: 'addColumn', name });
-					addColInput.value = '';
-				}
-			});
-			addColInput.addEventListener('keypress', (e) => {
-				if (e.key === 'Enter') addColBtn.click();
+				if (!name) return;
+				vscode.postMessage({ command: 'addColumn', name });
+				addColInput.value = '';
 			});
 
-			// Listen for updates from extension
+			/** ---------------------- Global Event Listeners ---------------------- */
+			// Press Enter on input fields
+			[addInput, addColInput].forEach((el) =>
+				el.addEventListener('keypress', (e) => {
+					if (e.key === 'Enter') el === addInput ? addBtn.click() : addColBtn.click();
+				}),
+			);
+
+			// ESC key closes modals
+			document.addEventListener('keydown', (e) => {
+				if (e.key === 'Escape') {
+					if (taskModal.style.display === 'flex')
+						resetTaskModal(), (taskModal.style.display = 'none');
+					const taskInfoModal = document.getElementById('task-info-modal');
+					if (taskInfoModal.style.display === 'flex') taskInfoModal.style.display = 'none';
+				}
+			});
+
+			/** ---------------------- Listen for updates from extension ---------------------- */
 			window.addEventListener('message', (event) => {
 				const message = event.data;
 				if (message.command === 'update') renderBoard(message.tasks);
 			});
 
-			// Show workspace/project name
+			/** Show workspace/project name */
 			if (typeof workspaceName !== 'undefined') {
 				document.getElementById('board-title').textContent = workspaceName + ' Kanban Board';
 			}
+
+			/** ---------------------- Auto-pairing for input fields ---------------------- */
+			function enableAutoPair(inputEl) {
+				const pairs = { '[': ']', '{': '}', '(': ')', '"': '"', "'": "'", '`': '`' };
+
+				inputEl.addEventListener('keydown', (e) => {
+					const start = inputEl.selectionStart;
+					const end = inputEl.selectionEnd;
+					const nextChar = inputEl.value[start];
+
+					// Opening characters
+					if (pairs[e.key]) {
+						// Special handling for quotes and backtick
+						if ((e.key === '"' || e.key === "'" || e.key === '`') && nextChar === e.key) {
+							e.preventDefault();
+							inputEl.selectionStart = inputEl.selectionEnd = start + 1;
+							return;
+						}
+
+						// Normal pair insertion
+						if (!e.ctrlKey && !e.metaKey) {
+							e.preventDefault();
+							const closeChar = pairs[e.key];
+							inputEl.value =
+								inputEl.value.slice(0, start) + e.key + closeChar + inputEl.value.slice(end);
+							inputEl.selectionStart = inputEl.selectionEnd = start + 1;
+						}
+					}
+
+					// Closing characters
+					else if (Object.values(pairs).includes(e.key)) {
+						if (nextChar === e.key) {
+							e.preventDefault();
+							inputEl.selectionStart = inputEl.selectionEnd = start + 1;
+						}
+					}
+				});
+			}
+
+			// Apply auto-pairing to task inputs
+			enableAutoPair(addInput);
+			enableAutoPair(notesInput);
 		</script>
 	</body>
 </html>

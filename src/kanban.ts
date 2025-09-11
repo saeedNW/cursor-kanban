@@ -1,80 +1,143 @@
-import { readTasks, Tasks, writeTasks } from './md-parser';
+import { readTasks, Task, Tasks, writeTasks } from './md-parser';
 
 /**
  * High-level manager for a Markdown-backed Kanban board.
- * All mutating operations immediately persist to the underlying `tasks.md` file.
+ * All operations immediately persist changes to the underlying `tasks.md` file.
  */
-
 export class Kanban {
 	private tasks: Tasks;
 
 	/**
-	 * @param filePath Absolute path to the `tasks.md` file.
+	 * Create a Kanban manager for a given Markdown file.
+	 * @param filePath Absolute path to the `tasks.md` file
 	 */
 	constructor(private filePath: string) {
 		this.tasks = readTasks(filePath);
 	}
 
-	/** Add a new task to the given column. Creates the column if it does not exist. */
-	addTask(column: string, text: string) {
+	/**
+	 * Add a new task to a column.
+	 * If the column does not exist, it is created automatically.
+	 * @param column Name of the column
+	 * @param text Task description
+	 * @param priority Task priority ('Low' | 'Medium' | 'High'), default 'Medium'
+	 * @param notes Optional notes for the task
+	 */
+	addTask(column: string, text: string, priority: Task['priority'] = 'Medium', notes?: string) {
 		if (!this.tasks[column]) {
 			this.tasks[column] = [];
 		}
-		this.tasks[column].push({ text, done: false });
+		this.tasks[column].push({ text, priority, done: false, notes });
 		this.save();
 	}
 
-	/** Remove a task at the provided index within the column. */
+	/**
+	 * Insert a task at a specific index in a column.
+	 * @param column Target column
+	 * @param index Index to insert at
+	 * @param task Task object
+	 */
+	insertTask(column: string, index: number, task: Task) {
+		if (!this.tasks[column]) {
+			this.tasks[column] = [];
+		}
+		this.tasks[column].splice(index, 0, task);
+		this.save();
+	}
+
+	/**
+	 * Remove a task at a specific index within a column.
+	 * @param column Column name
+	 * @param index Task index
+	 */
 	removeTask(column: string, index: number) {
-		this.tasks[column]?.splice(index, 1);
-		this.save();
+		if (this.tasks[column]?.[index]) {
+			this.tasks[column].splice(index, 1);
+			this.save();
+		}
 	}
 
-	/** Move a task from one column to another, preserving the task object. */
-	moveTask(fromColumn: string, toColumn: string, index: number) {
-		const task = this.tasks[fromColumn]?.[index];
+	/**
+	 * Move a task from one column to another, preserving all task properties.
+	 * If the target column does not exist, it will be created.
+	 * @param fromColumn Source column
+	 * @param toColumn Destination column
+	 * @param fromIndex Task index in the source column
+	 * @param toIndex Task index in the destination column
+	 */
+	moveTask(fromColumn: string, toColumn: string, fromIndex: number, toIndex?: number) {
+		const task = this.tasks[fromColumn]?.[fromIndex];
 		if (!task) {
 			return;
 		}
-		this.removeTask(fromColumn, index);
+
+		// Remove task from source
+		this.removeTask(fromColumn, fromIndex);
+
+		// Ensure target column exists
 		if (!this.tasks[toColumn]) {
 			this.tasks[toColumn] = [];
 		}
-		this.tasks[toColumn].push(task);
+
+		// Insert at target index or push to end
+		if (toIndex !== undefined && toIndex >= 0 && toIndex <= this.tasks[toColumn].length) {
+			this.tasks[toColumn].splice(toIndex, 0, task);
+		} else {
+			this.tasks[toColumn].push(task);
+		}
+
 		this.save();
 	}
 
-	/** Toggle the completion state of a task. */
+	/**
+	 * Toggle the 'done' status of a task.
+	 * @param column Column name
+	 * @param index Task index
+	 */
 	toggleDone(column: string, index: number) {
 		const task = this.tasks[column]?.[index];
 		if (!task) {
 			return;
 		}
+
 		task.done = !task.done;
 		this.save();
 	}
 
-	/** Mark a task as done. */
+	/**
+	 * Mark a task as done.
+	 * @param column Column name
+	 * @param index Task index
+	 */
 	setDone(column: string, index: number) {
 		const task = this.tasks[column]?.[index];
 		if (!task) {
 			return;
 		}
+
 		task.done = true;
 		this.save();
 	}
 
-	/** Mark a task as not done. */
+	/**
+	 * Mark a task as not done.
+	 * @param column Column name
+	 * @param index Task index
+	 */
 	setNotDone(column: string, index: number) {
 		const task = this.tasks[column]?.[index];
 		if (!task) {
 			return;
 		}
+
 		task.done = false;
 		this.save();
 	}
 
-	/** Create a new column if it is not already present. */
+	/**
+	 * Add a new column if it does not already exist.
+	 * @param name Column name
+	 */
 	addColumn(name: string) {
 		if (!this.tasks[name]) {
 			this.tasks[name] = [];
@@ -82,7 +145,10 @@ export class Kanban {
 		}
 	}
 
-	/** Remove a column and all of its tasks. */
+	/**
+	 * Remove a column and all its tasks.
+	 * @param name Column name
+	 */
 	removeColumn(name: string) {
 		if (this.tasks[name]) {
 			delete this.tasks[name];
@@ -90,12 +156,18 @@ export class Kanban {
 		}
 	}
 
-	/** Return an in-memory snapshot of all tasks. */
+	/**
+	 * Get a snapshot of the current tasks in memory.
+	 * @returns Tasks object mapping column names to task arrays
+	 */
 	getTasks(): Tasks {
 		return this.tasks;
 	}
 
-	/** Persist the in-memory state to disk. */
+	/**
+	 * Persist the current in-memory tasks to the Markdown file.
+	 * This is called automatically after any mutating operation.
+	 */
 	private save() {
 		writeTasks(this.filePath, this.tasks);
 	}

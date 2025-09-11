@@ -30,11 +30,13 @@ suite('md-parser', () => {
 		const tasks = readTasks(filePath);
 
 		assert.deepStrictEqual(tasks['Todo'], [
-			{ text: 'task A', done: false },
-			{ text: 'task B', done: true },
+			{ text: 'task A', done: false, priority: 'Medium' },
+			{ text: 'task B', done: true, priority: 'Medium' },
 		]);
-		assert.deepStrictEqual(tasks['In Progress'], [{ text: 'working on it', done: false }]);
-		assert.deepStrictEqual(tasks['Done'], [{ text: 'finished', done: true }]);
+		assert.deepStrictEqual(tasks['In Progress'], [
+			{ text: 'working on it', done: false, priority: 'Medium' },
+		]);
+		assert.deepStrictEqual(tasks['Done'], [{ text: 'finished', done: true, priority: 'Medium' }]);
 	});
 
 	test('writeTasks writes expected markdown structure (order and roundtrip)', () => {
@@ -43,10 +45,10 @@ suite('md-parser', () => {
 
 		const tasks: Tasks = {
 			Todo: [
-				{ text: 'task A', done: false },
-				{ text: 'task B', done: true },
+				{ text: 'task A', done: false, priority: 'High' },
+				{ text: 'task B', done: true, priority: 'Low' },
 			],
-			Done: [{ text: 'finished', done: true }],
+			Done: [{ text: 'finished', done: true, priority: 'Medium' }],
 		};
 
 		writeTasks(filePath, tasks);
