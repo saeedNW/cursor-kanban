@@ -220,7 +220,7 @@
 				background: white;
 				padding: 20px;
 				border-radius: 8px;
-				width: 400px;
+				width: 650px;
 				box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
 				display: flex;
 				flex-direction: column;
@@ -250,7 +250,7 @@
 
 			#new-task,
 			#new-task-notes {
-				width: 93%;
+				width: 96%;
 			}
 
 			#info-description {
@@ -260,6 +260,10 @@
 				border-radius: 4px;
 				min-height: 40px;
 				line-break: anywhere;
+				overflow-y: scroll;
+				height: 500px;
+				scrollbar-width: thin;
+				scrollbar-color: #888 #f1f1f1;
 			}
 
 			#info-title {
@@ -293,7 +297,7 @@
 					<option value="Low">Low</option>
 					<option value="Lowest">Lowest</option>
 				</select>
-				<textarea id="new-task-notes" placeholder="Task notes..." rows="3"></textarea>
+				<textarea id="new-task-notes" placeholder="Task notes..." rows="7"></textarea>
 				<select id="new-task-column"></select>
 				<div class="modal-actions">
 					<button id="cancel-task" class="btn-secondary">Cancel</button>
