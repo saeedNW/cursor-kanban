@@ -661,11 +661,17 @@
 
 				// Close modal on clicking close button
 				const closeInfoBtn = document.getElementById('close-info');
-				closeInfoBtn.onclick = () => (taskInfoModal.style.display = 'none');
+				closeInfoBtn.onclick = () => {
+					taskInfoModal.style.display = 'none';
+					window.currentEditingTask = null;
+				};
 
 				// Click outside modal content closes it
 				taskInfoModal.onclick = (e) => {
-					if (e.target === taskInfoModal) taskInfoModal.style.display = 'none';
+					if (e.target === taskInfoModal) {
+						taskInfoModal.style.display = 'none';
+						window.currentEditingTask = null;
+					}
 				};
 
 				taskInfoModal.style.display = 'flex';
@@ -756,7 +762,10 @@
 					if (taskModal.style.display === 'flex')
 						resetTaskModal(), (taskModal.style.display = 'none');
 					const taskInfoModal = document.getElementById('task-info-modal');
-					if (taskInfoModal.style.display === 'flex') taskInfoModal.style.display = 'none';
+					if (taskInfoModal.style.display === 'flex') {
+						taskInfoModal.style.display = 'none';
+						window.currentEditingTask = null;
+					}
 				}
 			});
 
@@ -765,16 +774,26 @@
 				const message = event.data;
 				if (message.command === 'update') {
 					renderBoard(message.tasks);
-					// If task info modal is open, refresh it with updated task data
+					// If task info modal is open, check if the task is still the same
 					if (window.currentEditingTask) {
 						const updatedTask =
+							message.tasks[window.currentEditingTask.column] &&
 							message.tasks[window.currentEditingTask.column][window.currentEditingTask.taskIndex];
-						if (updatedTask) {
+
+						if (updatedTask && updatedTask.text === window.currentEditingTask.task.text) {
+							// Same task at the same position, refresh the modal
 							showTaskInfoModal(
 								updatedTask,
 								window.currentEditingTask.column,
 								window.currentEditingTask.taskIndex,
 							);
+						} else {
+							// Task is different or no longer exists at that position, close modal
+							const taskInfoModal = document.getElementById('task-info-modal');
+							if (taskInfoModal) {
+								taskInfoModal.style.display = 'none';
+							}
+							window.currentEditingTask = null;
 						}
 					}
 				}
