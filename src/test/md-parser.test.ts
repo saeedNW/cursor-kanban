@@ -39,6 +39,37 @@ suite('md-parser', () => {
 		assert.deepStrictEqual(tasks['Done'], [{ text: 'finished', done: true, priority: 'Medium' }]);
 	});
 
+	test('readTasks parses multiple comments with [Comments: ...] syntax', () => {
+		const md = [
+			'## Todo',
+			'- [ ] task with comments [Comments: First comment | Second comment]',
+			'    This is a note',
+			'    - This is a level one note',
+			'        - This is a level two note',
+			'- [x] task with single comment [Comments: Single comment]',
+			'',
+		].join('\n');
+
+		const filePath = createTempTasksFile(md);
+		const tasks = readTasks(filePath);
+
+		assert.deepStrictEqual(tasks['Todo'], [
+			{
+				text: 'task with comments',
+				done: false,
+				priority: 'Medium',
+				notes: 'This is a note\n- This is a level one note\n    - This is a level two note',
+				comments: ['First comment', 'Second comment'],
+			},
+			{
+				text: 'task with single comment',
+				done: true,
+				priority: 'Medium',
+				comments: ['Single comment'],
+			},
+		]);
+	});
+
 	test('writeTasks writes expected markdown structure (order and roundtrip)', () => {
 		const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'cursor-kanban-md-'));
 		const filePath = path.join(tempDir, 'tasks.md');
@@ -60,6 +91,40 @@ suite('md-parser', () => {
 		assert.ok(content.includes('- [x] task B'));
 		assert.ok(content.includes('## Done'));
 		assert.ok(content.includes('- [x] finished'));
+
+		// Reading back should preserve structure
+		const roundTripped = readTasks(filePath);
+		assert.deepStrictEqual(roundTripped, tasks);
+	});
+
+	test('writeTasks writes multiple comments with [Comments: ...] syntax', () => {
+		const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'cursor-kanban-md-'));
+		const filePath = path.join(tempDir, 'tasks.md');
+
+		const tasks: Tasks = {
+			Todo: [
+				{
+					text: 'task with comments',
+					done: false,
+					priority: 'High',
+					notes: 'This is a note',
+					comments: ['First comment', 'Second comment'],
+				},
+				{
+					text: 'task with single comment',
+					done: true,
+					priority: 'Low',
+					comments: ['Single comment'],
+				},
+			],
+		};
+
+		writeTasks(filePath, tasks);
+
+		const content = fs.readFileSync(filePath, 'utf-8');
+		assert.ok(content.includes('This is a note')); // 4-space indent
+		assert.ok(content.includes('[Comments: First comment | Second comment]')); // multiple comments
+		assert.ok(content.includes('[Comments: Single comment]')); // single comment
 
 		// Reading back should preserve structure
 		const roundTripped = readTasks(filePath);

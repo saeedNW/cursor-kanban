@@ -8,6 +8,7 @@ export interface Task {
 	done: boolean;
 	priority: 'Highest' | 'High' | 'Medium' | 'Low' | 'Lowest';
 	notes?: string;
+	comments?: string[];
 }
 
 /**
@@ -22,6 +23,7 @@ export interface Tasks {
  * Columns are defined by '## ColumnName' headers.
  * Tasks start with '- [ ]' or '- [x]'.
  * Notes are indented 4 spaces under the task.
+ * Comments are specified with [Comments: ...] syntax in the task line.
  * @param filePath Absolute path to the markdown file
  * @returns Parsed tasks grouped by column
  */
@@ -43,24 +45,39 @@ export function readTasks(filePath: string): Tasks {
 			if (line.startsWith('- [')) {
 				// Parse a new task line
 				const done = line.startsWith('- [x]');
-				const taskTextMatch = line
-					.slice(6) // remove '- [ ] ' or '- [x] '
-					.trim()
-					.match(/(.*?)\s*\[Priority:\s*(.*?)\]$/);
+				let taskText = line.slice(6).trim(); // remove '- [ ] ' or '- [x] '
 
-				if (taskTextMatch) {
-					currentTask = {
-						text: taskTextMatch[1].trim(),
-						done,
-						priority: taskTextMatch[2] as Task['priority'],
-					};
-				} else {
-					currentTask = {
-						text: line.slice(6).trim(),
-						done,
-						priority: 'Medium',
-					};
+				// Extract priority and comments using a more robust approach
+				let priority = 'Medium';
+				let comments;
+
+				// Look for [Priority: ...] pattern
+				const priorityMatch = taskText.match(/(.*?)\s*\[Priority:\s*([^\]]+)\]/);
+				if (priorityMatch) {
+					priority = priorityMatch[2].trim();
+					taskText = taskText.replace(/\s*\[Priority:\s*[^\]]+\]/, '').trim();
 				}
+
+				// Look for [Comments: ...] pattern
+				const commentsMatch = taskText.match(/(.*?)\s*\[Comments:\s*([^\]]+)\]/);
+				if (commentsMatch) {
+					const commentsText = commentsMatch[2].trim();
+					const commentArray = commentsText
+						.split('|')
+						.map((c) => c.trim())
+						.filter((c) => c.length > 0);
+					if (commentArray.length > 0) {
+						comments = commentArray;
+					}
+					taskText = taskText.replace(/\s*\[Comments:\s*[^\]]+\]/, '').trim();
+				}
+
+				currentTask = {
+					text: taskText,
+					done,
+					priority: priority as Task['priority'],
+					...(comments && { comments }),
+				};
 
 				tasks[columnName].push(currentTask);
 			} else if (currentTask && line.match(/^\s{4}/)) {
@@ -79,8 +96,9 @@ export function readTasks(filePath: string): Tasks {
 /**
  * Write tasks to a markdown file.
  * Columns become '## ColumnName' headers.
- * Tasks are formatted as '- [ ] Task [Priority: Priority]'.
+ * Tasks are formatted as '- [ ] Task [Priority: Priority] [Comments: Comments]'.
  * Notes are written as indented lines under each task.
+ * Comments are specified with [Comments: ...] syntax in the task line.
  * @param filePath Absolute path to write the markdown file
  * @param tasks Tasks to serialize into markdown
  */
@@ -91,7 +109,12 @@ export function writeTasks(filePath: string, tasks: Tasks): void {
 		content += `## ${column}\n`;
 
 		for (const task of taskList) {
-			content += `- [${task.done ? 'x' : ' '}] ${task.text} [Priority: ${task.priority}]\n`;
+			let taskLine = `- [${task.done ? 'x' : ' '}] ${task.text} [Priority: ${task.priority}]`;
+			if (task.comments && task.comments.length > 0) {
+				const commentsText = task.comments.join(' | ');
+				taskLine += ` [Comments: ${commentsText}]`;
+			}
+			content += taskLine + '\n';
 
 			if (task.notes) {
 				for (const noteLine of task.notes.split('\n')) {

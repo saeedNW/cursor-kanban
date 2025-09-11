@@ -135,6 +135,61 @@ export class Kanban {
 	}
 
 	/**
+	 * Add a comment to a task.
+	 * @param column Column name
+	 * @param index Task index
+	 * @param comment New comment to add
+	 */
+	addTaskComment(column: string, index: number, comment: string) {
+		const task = this.tasks[column]?.[index];
+		if (!task) {
+			return;
+		}
+
+		if (!task.comments) {
+			task.comments = [];
+		}
+		task.comments.push(comment);
+		this.save();
+	}
+
+	/**
+	 * Update a specific comment of a task.
+	 * @param column Column name
+	 * @param index Task index
+	 * @param commentIndex Index of the comment to update
+	 * @param comment New comment text
+	 */
+	updateTaskComment(column: string, index: number, commentIndex: number, comment: string) {
+		const task = this.tasks[column]?.[index];
+		if (!task || !task.comments || commentIndex < 0 || commentIndex >= task.comments.length) {
+			return;
+		}
+
+		task.comments[commentIndex] = comment;
+		this.save();
+	}
+
+	/**
+	 * Remove a specific comment from a task.
+	 * @param column Column name
+	 * @param index Task index
+	 * @param commentIndex Index of the comment to remove
+	 */
+	removeTaskComment(column: string, index: number, commentIndex: number) {
+		const task = this.tasks[column]?.[index];
+		if (!task || !task.comments || commentIndex < 0 || commentIndex >= task.comments.length) {
+			return;
+		}
+
+		task.comments.splice(commentIndex, 1);
+		if (task.comments.length === 0) {
+			task.comments = undefined;
+		}
+		this.save();
+	}
+
+	/**
 	 * Add a new column if it does not already exist.
 	 * @param name Column name
 	 */

@@ -108,4 +108,48 @@ suite('Kanban', () => {
 		persisted = readTasks(filePath);
 		assert.strictEqual(persisted['Backlog'], undefined);
 	});
+
+	test('addTaskComment, updateTaskComment, and removeTaskComment', () => {
+		const filePath = makeInitialFile();
+		const kb = new Kanban(filePath);
+
+		// Add task without comments
+		kb.addTask('Todo', 'task with comments', 'High', 'Some notes');
+		let tasks = kb.getTasks();
+		assert.deepStrictEqual(tasks['Todo'][0], {
+			text: 'task with comments',
+			done: false,
+			priority: 'High',
+			notes: 'Some notes',
+		});
+
+		// Add first comment
+		kb.addTaskComment('Todo', 0, 'First comment');
+		tasks = kb.getTasks();
+		assert.deepStrictEqual(tasks['Todo'][0].comments, ['First comment']);
+
+		// Add second comment
+		kb.addTaskComment('Todo', 0, 'Second comment');
+		tasks = kb.getTasks();
+		assert.deepStrictEqual(tasks['Todo'][0].comments, ['First comment', 'Second comment']);
+
+		// Update first comment
+		kb.updateTaskComment('Todo', 0, 0, 'Updated first comment');
+		tasks = kb.getTasks();
+		assert.deepStrictEqual(tasks['Todo'][0].comments, ['Updated first comment', 'Second comment']);
+
+		// Remove second comment
+		kb.removeTaskComment('Todo', 0, 1);
+		tasks = kb.getTasks();
+		assert.deepStrictEqual(tasks['Todo'][0].comments, ['Updated first comment']);
+
+		// Remove last comment (should clear comments array)
+		kb.removeTaskComment('Todo', 0, 0);
+		tasks = kb.getTasks();
+		assert.strictEqual(tasks['Todo'][0].comments, undefined);
+
+		// persisted
+		const persisted = readTasks(filePath);
+		assert.strictEqual(persisted['Todo'][0].comments, undefined);
+	});
 });

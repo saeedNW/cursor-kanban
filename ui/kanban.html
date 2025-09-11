@@ -225,6 +225,7 @@
 				display: flex;
 				flex-direction: column;
 				gap: 12px;
+				max-height: 900px;
 			}
 
 			.modal-header {
@@ -253,6 +254,10 @@
 				width: 96%;
 			}
 
+			#info-title {
+				display: inline;
+			}
+
 			#info-description {
 				white-space: pre-wrap;
 				background: #f3f4f6;
@@ -261,13 +266,22 @@
 				min-height: 40px;
 				line-break: anywhere;
 				overflow-y: scroll;
-				height: 500px;
+				max-height: 500px;
 				scrollbar-width: thin;
 				scrollbar-color: #888 #f1f1f1;
 			}
 
-			#info-title {
-				display: inline;
+			#info-comments {
+				max-height: 200px;
+				overflow-y: auto;
+				scrollbar-width: thin;
+				scrollbar-color: #888 #f1f1f1;
+				flex-shrink: 0;
+			}
+
+			#new-comment-input {
+				width: 96%;
+				margin-bottom: 10px;
 			}
 		</style>
 	</head>
@@ -297,7 +311,7 @@
 					<option value="Low">Low</option>
 					<option value="Lowest">Lowest</option>
 				</select>
-				<textarea id="new-task-notes" placeholder="Task notes..." rows="7"></textarea>
+				<textarea id="new-task-notes" placeholder="Task notes..." rows="4"></textarea>
 				<select id="new-task-column"></select>
 				<div class="modal-actions">
 					<button id="cancel-task" class="btn-secondary">Cancel</button>
@@ -318,6 +332,18 @@
 				<div><strong>Status:</strong> <span id="info-status"></span></div>
 				<div><strong>Description:</strong></div>
 				<div id="info-description"></div>
+				<div><strong>Comments:</strong></div>
+				<div id="info-comments"></div>
+				<div id="add-comment-section" style="margin-top: 10px">
+					<input type="text" id="new-comment-input" placeholder="Add a new comment..." />
+					<button
+						id="add-comment-btn"
+						class="btn-primary"
+						style="font-size: 0.8rem; padding: 4px 8px"
+					>
+						Add Comment
+					</button>
+				</div>
 				<div class="modal-actions">
 					<button id="close-info" class="btn-secondary">Close</button>
 				</div>
@@ -344,10 +370,8 @@
 			 * @param {string} text - The text content
 			 */
 			function applyDirection(el, text) {
-				console.log(el.textContent);
 				el.textContent = text;
 				if (!text) return;
-				console.log(el.textContent);
 
 				// Regex for Persian/Arabic characters
 				const persianRegex = /^[\u0600-\u06FF]/;
@@ -359,8 +383,6 @@
 					el.style.direction = 'ltr';
 					el.style.textAlign = 'left';
 				}
-
-				console.log(el);
 			}
 
 			/**
@@ -503,7 +525,7 @@
 						textEl.style.flex = '1';
 
 						// Show task info modal
-						textEl.onclick = () => showTaskInfoModal(task, column);
+						textEl.onclick = () => showTaskInfoModal(task, column, index);
 
 						// Priority badge
 						const badge = document.createElement('span');
@@ -556,8 +578,9 @@
 			 * Show Task Info Modal
 			 * @param {Object} task Task object
 			 * @param {string} column Column name of the task
+			 * @param {number} taskIndex Index of the task in the column
 			 */
-			function showTaskInfoModal(task, column) {
+			function showTaskInfoModal(task, column, taskIndex) {
 				const taskInfoModal = document.getElementById('task-info-modal');
 				applyDirection(document.getElementById('info-title'), task.text);
 				document.getElementById('info-priority').textContent = task.priority;
@@ -578,6 +601,63 @@
 				} else {
 					descEl.textContent = '(No description)';
 				}
+
+				const commentsEl = document.getElementById('info-comments');
+				// Clear existing content
+				commentsEl.innerHTML = '';
+
+				if (task.comments && task.comments.length > 0) {
+					task.comments.forEach((comment, index) => {
+						const commentDiv = document.createElement('div');
+						commentDiv.style.margin = '5px 0';
+						commentDiv.style.padding = '8px';
+						commentDiv.style.border = '1px solid #e5e7eb';
+						commentDiv.style.borderRadius = '4px';
+						commentDiv.style.backgroundColor = '#f9fafb';
+						commentDiv.style.position = 'relative';
+
+						const commentText = document.createElement('div');
+						applyDirection(commentText, comment);
+						commentText.style.paddingRight = '60px';
+						commentText.style.paddingBottom = '5px';
+						commentText.style.lineHeight = '1.5';
+
+						const deleteBtn = document.createElement('button');
+						deleteBtn.textContent = 'Delete';
+						deleteBtn.style.fontSize = '0.7rem';
+						deleteBtn.style.padding = '4px 8px';
+						deleteBtn.style.backgroundColor = '#ef4444';
+						deleteBtn.style.color = 'white';
+						deleteBtn.style.border = 'none';
+						deleteBtn.style.borderRadius = '3px';
+						deleteBtn.style.cursor = 'pointer';
+						deleteBtn.style.position = 'absolute';
+						deleteBtn.style.top = '8px';
+						deleteBtn.style.right = '8px';
+
+						deleteBtn.onclick = (e) => {
+							e.preventDefault();
+							e.stopPropagation();
+							if (window.currentEditingTask) {
+								vscode.postMessage({
+									command: 'removeComment',
+									column: window.currentEditingTask.column,
+									index: window.currentEditingTask.taskIndex,
+									commentIndex: index,
+								});
+							}
+						};
+
+						commentDiv.appendChild(commentText);
+						commentDiv.appendChild(deleteBtn);
+						commentsEl.appendChild(commentDiv);
+					});
+				} else {
+					commentsEl.textContent = '(No comments)';
+				}
+
+				// Store current task info for editing
+				window.currentEditingTask = { task, column, taskIndex };
 
 				// Close modal on clicking close button
 				const closeInfoBtn = document.getElementById('close-info');
@@ -629,6 +709,29 @@
 				notesInput.value = '';
 			}
 
+			/** ---------------------- Comment Adding Logic ---------------------- */
+			const newCommentInput = document.getElementById('new-comment-input');
+			const addCommentBtn = document.getElementById('add-comment-btn');
+
+			addCommentBtn.addEventListener('click', () => {
+				if (window.currentEditingTask && newCommentInput.value.trim()) {
+					vscode.postMessage({
+						command: 'addComment',
+						column: window.currentEditingTask.column,
+						index: window.currentEditingTask.taskIndex,
+						comment: newCommentInput.value.trim(),
+					});
+					newCommentInput.value = '';
+				}
+			});
+
+			// Allow adding comments with Enter key
+			newCommentInput.addEventListener('keypress', (e) => {
+				if (e.key === 'Enter') {
+					addCommentBtn.click();
+				}
+			});
+
 			/** ---------------------- Add Column Logic ---------------------- */
 			const addColInput = document.getElementById('new-column');
 			const addColBtn = document.getElementById('add-column-btn');
@@ -660,7 +763,21 @@
 			/** ---------------------- Listen for updates from extension ---------------------- */
 			window.addEventListener('message', (event) => {
 				const message = event.data;
-				if (message.command === 'update') renderBoard(message.tasks);
+				if (message.command === 'update') {
+					renderBoard(message.tasks);
+					// If task info modal is open, refresh it with updated task data
+					if (window.currentEditingTask) {
+						const updatedTask =
+							message.tasks[window.currentEditingTask.column][window.currentEditingTask.taskIndex];
+						if (updatedTask) {
+							showTaskInfoModal(
+								updatedTask,
+								window.currentEditingTask.column,
+								window.currentEditingTask.taskIndex,
+							);
+						}
+					}
+				}
 			});
 
 			/** Show workspace/project name */
@@ -709,6 +826,7 @@
 			// Apply auto-pairing to task inputs
 			enableAutoPair(addInput);
 			enableAutoPair(notesInput);
+			enableAutoPair(newCommentInput);
 		</script>
 	</body>
 </html>

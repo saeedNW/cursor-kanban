@@ -160,6 +160,41 @@ function handleWebviewMessage(message: any, panel: vscode.WebviewPanel) {
 				kanban.removeColumn(message.name);
 			}
 			break;
+
+		case 'addComment':
+			// Add a comment to a task
+			if (message.column !== undefined && message.index !== undefined && message.comment) {
+				kanban.addTaskComment(message.column, message.index, message.comment);
+			}
+			break;
+
+		case 'updateComment':
+			// Update a specific comment
+			if (
+				message.column !== undefined &&
+				message.index !== undefined &&
+				message.commentIndex !== undefined &&
+				message.comment
+			) {
+				kanban.updateTaskComment(
+					message.column,
+					message.index,
+					message.commentIndex,
+					message.comment,
+				);
+			}
+			break;
+
+		case 'removeComment':
+			// Remove a specific comment
+			if (
+				message.column !== undefined &&
+				message.index !== undefined &&
+				message.commentIndex !== undefined
+			) {
+				kanban.removeTaskComment(message.column, message.index, message.commentIndex);
+			}
+			break;
 	}
 
 	// Send updated tasks back to the webview
