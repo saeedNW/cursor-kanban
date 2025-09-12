@@ -15,6 +15,9 @@
 	"categories": [
 		"Other"
 	],
+	"activationEvents": [
+		"onCommand:cursor-kanban.openBoard"
+	],
 	"main": "./out/extension.js",
 	"contributes": {
 		"commands": [
