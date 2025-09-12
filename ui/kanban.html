@@ -386,6 +386,59 @@
 				width: 96%;
 				margin-bottom: 10px;
 			}
+
+			/* ---------------------- Find Panel ---------------------- */
+
+			.find-panel {
+				position: fixed;
+				top: 12px;
+				right: 16px;
+				display: flex;
+				align-items: center;
+				gap: 8px;
+				background: var(--task-bg);
+				color: var(--text);
+				border: 1px solid var(--border);
+				border-radius: 6px;
+				padding: 6px 8px;
+				z-index: 10001;
+				box-shadow: 0 6px 16px rgba(0, 0, 0, 0.18);
+			}
+
+			.find-panel input {
+				padding: 6px 8px;
+				border: 1px solid var(--border);
+				border-radius: 4px;
+				background: var(--task-bg);
+				color: var(--text);
+			}
+
+			.find-panel button {
+				padding: 4px 8px;
+				border-radius: 4px;
+				border: 1px solid var(--border);
+				background: var(--column-bg);
+				color: var(--text);
+				cursor: pointer;
+			}
+
+			.find-count {
+				font-size: 0.85rem;
+				color: var(--text-light);
+				min-width: 60px;
+				text-align: right;
+			}
+
+			/* Highlights */
+			.task.match .task-text {
+				background: rgba(250, 204, 21, 0.35); /* amber-300 @ ~35% */
+				border-radius: 4px;
+				padding: 1px 2px;
+			}
+
+			.task.current-match .task-text {
+				background: rgba(250, 204, 21, 0.65);
+			}
 		</style>
 	</head>
 	<body>
@@ -402,6 +455,15 @@
 			<button id="theme-toggle" class="btn-secondary" title="Toggle dark/light theme">
 				🌙 Dark
 			</button>
+		</div>
+
+		<!-- Find panel -->
+		<div id="find-panel" class="find-panel" style="display: none">
+			<input id="find-input" type="text" placeholder="Find in task titles..." />
+			<span id="find-count" class="find-count"></span>
+			<button id="find-prev" title="Previous (Shift+Enter)">↑</button>
+			<button id="find-next" title="Next (Enter)">↓</button>
+			<button id="find-close" title="Close (Esc)">✕</button>
 		</div>
 
 		<div id="board" class="board"></div>
@@ -1012,6 +1074,10 @@
 				const message = event.data;
 				if (message.command === 'update') {
 					renderBoard(message.tasks);
+
+					// Keep find highlights in sync after re-render
+					refreshFindIfOpen();
+
 					// If task info modal is open, check if the task is still the same
 					if (window.currentEditingTask) {
 						const updatedTask =
@@ -1077,6 +1143,153 @@
 
 			// Initialize theme on page load
 			initializeTheme();
+
+			/** ---------------------- Find in Tasks ---------------------- */
+			const findPanel = document.getElementById('find-panel');
+			const findInput = document.getElementById('find-input');
+			const findCount = document.getElementById('find-count');
+			const findPrevBtn = document.getElementById('find-prev');
+			const findNextBtn = document.getElementById('find-next');
+			const findCloseBtn = document.getElementById('find-close');
+
+			let findQuery = '';
+			let findMatches = []; // Array<HTMLElement> of .task
+			let findIndex = -1;
+
+			function clearFindHighlights() {
+				document.querySelectorAll('.task.match, .task.current-match').forEach((el) => {
+					el.classList.remove('match', 'current-match');
+				});
+			}
+
+			function updateFindMatches() {
+				clearFindHighlights();
+				findMatches = [];
+				findIndex = -1;
+				findCount.textContent = '';
+
+				const q = findQuery.trim().toLowerCase();
+				if (!q) return;
+
+				const allTasks = Array.from(document.querySelectorAll('.task'));
+				allTasks.forEach((taskEl) => {
+					const textEl = taskEl.querySelector('.task-text');
+					if (!textEl) return;
+					const text = (textEl.textContent || '').toLowerCase();
+					if (text.includes(q)) {
+						taskEl.classList.add('match');
+						findMatches.push(taskEl);
+					}
+				});
+
+				if (findMatches.length > 0) {
+					findIndex = 0;
+					applyCurrentMatch();
+				}
+				updateFindCount();
+			}
+
+			function updateFindCount() {
+				if (!findMatches.length) {
+					findCount.textContent = '0/0';
+				} else {
+					findCount.textContent = `${findIndex + 1}/${findMatches.length}`;
+				}
+			}
+
+			function applyCurrentMatch() {
+				document
+					.querySelectorAll('.task.current-match')
+					.forEach((el) => el.classList.remove('current-match'));
+				if (findMatches.length && findIndex >= 0) {
+					const el = findMatches[findIndex];
+					el.classList.add('current-match');
+					// Ensure it is visible
+					el.scrollIntoView({ block: 'center', behavior: 'smooth' });
+				}
+			}
+
+			function openFindPanel() {
+				findPanel.style.display = 'flex';
+				findPanel.style.visibility = 'visible';
+				findInput.focus();
+				findInput.select();
+			}
+
+			function closeFindPanel() {
+				findPanel.style.display = 'none';
+				findPanel.style.visibility = 'hidden';
+				findQuery = '';
+				findInput.value = '';
+				findCount.textContent = '';
+				clearFindHighlights();
+			}
+
+			function findNext() {
+				if (!findMatches.length) return;
+				findIndex = (findIndex + 1) % findMatches.length;
+				applyCurrentMatch();
+				updateFindCount();
+			}
+
+			function findPrev() {
+				if (!findMatches.length) return;
+				findIndex = (findIndex - 1 + findMatches.length) % findMatches.length;
+				applyCurrentMatch();
+				updateFindCount();
+			}
+
+			// Events
+			findInput.addEventListener('input', () => {
+				findQuery = findInput.value;
+				updateFindMatches();
+			});
+			findInput.addEventListener('keydown', (e) => {
+				if (e.key === 'Enter') {
+					e.preventDefault();
+					if (e.shiftKey) findPrev();
+					else findNext();
+				} else if (e.key === 'Escape') {
+					e.preventDefault();
+					closeFindPanel();
+				}
+			});
+			findPrevBtn.addEventListener('click', (e) => {
+				e.preventDefault();
+				findPrev();
+			});
+			findNextBtn.addEventListener('click', (e) => {
+				e.preventDefault();
+				findNext();
+			});
+			findCloseBtn.addEventListener('click', (e) => {
+				e.preventDefault();
+				closeFindPanel();
+			});
+
+			// Global keybinding: Ctrl+F opens find panel
+			document.addEventListener('keydown', (e) => {
+				// Ignore when modifiers not held and typing in inputs
+				const tag = (document.activeElement && document.activeElement.tagName) || '';
+				if ((e.ctrlKey || e.metaKey) && (e.key === 'f' || e.key === 'F')) {
+					e.preventDefault();
+					openFindPanel();
+					// Keep current query and recompute matches with current DOM
+					findQuery = findInput.value || findQuery;
+					updateFindMatches();
+				}
+				// Esc closes find when focused outside the input
+				if (e.key === 'Escape' && findPanel.style.display === 'flex') {
+					closeFindPanel();
+				}
+			});
+
+			// If board re-renders while find is open, recompute matches
+			function refreshFindIfOpen() {
+				if (findPanel.style.display === 'flex' && findQuery.trim()) {
+					updateFindMatches();
+				}
+			}
 
 			/** ---------------------- Auto-pairing for input fields ---------------------- */
 			function enableAutoPair(inputEl) {
