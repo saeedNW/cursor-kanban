@@ -16,7 +16,8 @@
 		"Other"
 	],
 	"activationEvents": [
-		"onCommand:cursor-kanban.openBoard"
+		"onCommand:cursor-kanban.openBoard",
+		"onCommand:cursor-kanban.openBoardFromFile"
 	],
 	"main": "./out/extension.js",
 	"contributes": {
@@ -24,6 +25,11 @@
 			{
 				"command": "cursor-kanban.openBoard",
 				"title": "Cursor Kanban: Open Board",
+				"category": "Kanban"
+			},
+			{
+				"command": "cursor-kanban.openBoardFromFile",
+				"title": "Cursor Kanban: Open Board From File",
 				"category": "Kanban"
 			}
 		]

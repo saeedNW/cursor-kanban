@@ -192,4 +192,35 @@ suite('Kanban', () => {
 		const persisted = readTasks(filePath);
 		assert.strictEqual(persisted['Todo'][0].comments, undefined);
 	});
+
+	test('multiple files are independent', () => {
+		const filePath1 = makeInitialFile();
+		const filePath2 = makeInitialFile();
+
+		const kb1 = new Kanban(filePath1);
+		const kb2 = new Kanban(filePath2);
+
+		kb1.addTask('Todo', 'task A1');
+		kb2.addTask('Todo', 'task B1');
+
+		// Modify each independently
+		kb1.moveTask('Todo', 'In Progress', 0);
+		kb2.setDone('Todo', 0);
+
+		// In-memory isolation
+		const t1 = kb1.getTasks();
+		const t2 = kb2.getTasks();
+		assert.strictEqual(t1['In Progress'].length, 1);
+		assert.strictEqual(t1['Todo'].length, 0);
+		assert.strictEqual(t2['Todo'].length, 1);
+		assert.strictEqual(t2['Todo'][0].done, true);
+
+		// Persistence isolation
+		const p1 = readTasks(filePath1);
+		const p2 = readTasks(filePath2);
+		assert.strictEqual(p1['In Progress'].length, 1);
+		assert.strictEqual(p1['Todo']?.length ?? 0, 0);
+		assert.strictEqual(p2['Todo'].length, 1);
+		assert.strictEqual(p2['Todo'][0].done, true);
+	});
 });

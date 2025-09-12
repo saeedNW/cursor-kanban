@@ -24,7 +24,10 @@ suite('Extension behavior', () => {
 		await activate({ subscriptions: [] } as unknown as vscode.ExtensionContext);
 	});
 
-	test('creates tasks.md with default columns on activation', async () => {
+	test('creates tasks.md with default columns via command', async () => {
+		// trigger creation using the command (new behavior)
+		await vscode.commands.executeCommand('cursor-kanban.openBoard');
+
 		assert.ok(fs.existsSync(tasksPath));
 		const content = fs.readFileSync(tasksPath, 'utf-8');
 		assert.ok(/##\s*Todo/m.test(content));
