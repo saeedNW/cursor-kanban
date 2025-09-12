@@ -212,6 +212,35 @@ export class Kanban {
 	}
 
 	/**
+	 * Move a column to a new position in the column order.
+	 * @param columnName Name of the column to move
+	 * @param newIndex New index position for the column
+	 */
+	moveColumn(columnName: string, newIndex: number) {
+		const columnNames = Object.keys(this.tasks);
+		const currentIndex = columnNames.indexOf(columnName);
+
+		if (currentIndex === -1 || newIndex < 0 || newIndex >= columnNames.length) {
+			return;
+		}
+
+		// Remove the column from its current position
+		columnNames.splice(currentIndex, 1);
+
+		// Insert it at the new position
+		columnNames.splice(newIndex, 0, columnName);
+
+		// Rebuild the tasks object in the new order
+		const reorderedTasks: Tasks = {};
+		for (const name of columnNames) {
+			reorderedTasks[name] = this.tasks[name];
+		}
+
+		this.tasks = reorderedTasks;
+		this.save();
+	}
+
+	/**
 	 * Get a snapshot of the current tasks in memory.
 	 * @returns Tasks object mapping column names to task arrays
 	 */

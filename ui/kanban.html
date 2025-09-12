@@ -75,6 +75,22 @@
 				box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 				display: flex;
 				flex-direction: column;
+				transition: transform 0.2s ease, box-shadow 0.2s ease;
+			}
+
+			.column:hover {
+				transform: translateY(-2px);
+				box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+			}
+
+			.column.dragging {
+				opacity: 0.5;
+				transform: rotate(5deg);
+			}
+
+			.column.drag-over {
+				border-color: var(--primary);
+				box-shadow: 0 0 0 2px var(--primary-light);
 			}
 
 			.column-header {
@@ -111,6 +127,59 @@
 				align-items: center;
 				transition: transform 0.2s ease, opacity 0.2s ease;
 				box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+				position: relative;
+			}
+
+			.task-text {
+				flex: 1;
+				overflow: hidden;
+				white-space: nowrap;
+				text-overflow: ellipsis;
+				position: relative;
+				margin-right: 8px;
+			}
+
+			.task-text::after {
+				content: '';
+				position: absolute;
+				top: 0;
+				right: 0;
+				width: 20px;
+				height: 100%;
+				background: linear-gradient(to right, transparent, var(--task-bg));
+				pointer-events: none;
+			}
+
+			.task.done .task-text::after {
+				background: linear-gradient(to right, transparent, var(--done-bg));
+			}
+
+			/* Custom Tooltip */
+			.tooltip {
+				position: fixed;
+				right: 16px;
+				bottom: 16px;
+				background: var(--task-bg);
+				color: var(--text);
+				padding: 10px 14px;
+				border-radius: 8px;
+				font-size: 0.9rem;
+				line-height: 1.4;
+				z-index: 10000;
+				box-shadow: 0 6px 16px rgba(0, 0, 0, 0.18);
+				border: 1px solid var(--border);
+				opacity: 0;
+				visibility: hidden;
+				transition: opacity 0.16s ease, visibility 0.16s ease;
+				pointer-events: none;
+				max-width: 420px;
+				word-wrap: break-word;
+				white-space: normal;
+			}
+
+			.tooltip.show {
+				opacity: 1;
+				visibility: visible;
 			}
 
 			.task:hover {
@@ -295,7 +364,7 @@
 				padding: 8px;
 				border-radius: 4px;
 				min-height: 40px;
-				line-break: anywhere;
+				word-wrap: break-word;
 				overflow-y: scroll;
 				max-height: 500px;
 				scrollbar-width: thin;
@@ -334,6 +403,9 @@
 		</div>
 
 		<div id="board" class="board"></div>
+
+		<!-- Global tooltip -->
+		<div id="global-tooltip" class="tooltip"></div>
 
 		<!-- Modal for creating tasks -->
 		<div id="task-modal" class="modal-backdrop">
@@ -397,6 +469,10 @@
 			let draggedIndex = null;
 			let draggedColumn = null;
 
+			/** Column drag state */
+			let draggedColumnEl = null;
+			let draggedColumnName = null;
+
 			/** Current tasks snapshot */
 			let currentTasks = {};
 
@@ -449,8 +525,22 @@
 					// Column header
 					const colHeader = document.createElement('div');
 					colHeader.className = 'column-header';
+
+					// Drag handle
+					const dragHandle = document.createElement('div');
+					dragHandle.innerHTML = '⋮⋮';
+					dragHandle.style.cursor = 'move';
+					dragHandle.style.color = 'var(--text-light)';
+					dragHandle.style.fontSize = '12px';
+					dragHandle.style.padding = '4px';
+					dragHandle.style.marginRight = '8px';
+					dragHandle.style.lineHeight = '1';
+					dragHandle.title = 'Drag to reorder column';
+
 					const colTitle = document.createElement('h3');
 					colTitle.textContent = column;
+					colTitle.style.flex = '1';
+					colTitle.style.margin = '0';
 
 					const removeColBtn = document.createElement('button');
 					removeColBtn.textContent = '×';
@@ -458,6 +548,7 @@
 					removeColBtn.onclick = () =>
 						vscode.postMessage({ command: 'removeColumn', name: column });
 
+					colHeader.appendChild(dragHandle);
 					colHeader.appendChild(colTitle);
 					colHeader.appendChild(removeColBtn);
 					colEl.appendChild(colHeader);
@@ -466,6 +557,59 @@
 					const colContent = document.createElement('div');
 					colContent.className = 'column-content';
 					colEl.appendChild(colContent);
+
+					// ---------------------- Column Drag Events ----------------------
+					// Make only the drag handle draggable, not the entire column
+					dragHandle.draggable = true;
+
+					// Column drag start (only on drag handle)
+					dragHandle.addEventListener('dragstart', (e) => {
+						draggedColumnEl = colEl;
+						draggedColumnName = column;
+						colEl.classList.add('dragging');
+						e.dataTransfer.effectAllowed = 'move';
+					});
+
+					// Column drag end (only on drag handle)
+					dragHandle.addEventListener('dragend', () => {
+						colEl.classList.remove('dragging');
+						draggedColumnEl = null;
+						draggedColumnName = null;
+					});
+
+					// Column drag over (on the column element)
+					colEl.addEventListener('dragover', (e) => {
+						e.preventDefault();
+						if (draggedColumnEl && draggedColumnEl !== colEl) {
+							colEl.classList.add('drag-over');
+						}
+					});
+
+					// Column drag leave (on the column element)
+					colEl.addEventListener('dragleave', () => {
+						colEl.classList.remove('drag-over');
+					});
+
+					// Column drop (on the column element)
+					colEl.addEventListener('drop', (e) => {
+						e.preventDefault();
+						colEl.classList.remove('drag-over');
+
+						if (draggedColumnEl && draggedColumnEl !== colEl) {
+							const board = document.getElementById('board');
+							const columns = Array.from(board.children);
+							const fromIndex = columns.indexOf(draggedColumnEl);
+							const toIndex = columns.indexOf(colEl);
+
+							if (fromIndex !== -1 && toIndex !== -1) {
+								vscode.postMessage({
+									command: 'moveColumn',
+									columnName: draggedColumnName,
+									newIndex: toIndex,
+								});
+							}
+						}
+					});
 
 					// Create a global placeholder for drag-and-drop
 					let placeholder = document.createElement('div');
@@ -477,10 +621,16 @@
 					placeholder.style.transition = 'all 0.2s ease';
 					placeholder.style.background = 'rgba(37, 99, 235, 0.2)';
 
-					// ---------------------- Column Drag Events ----------------------
-					// Drag events for column
+					// ---------------------- Task Drag Events ----------------------
+					// Drag events for tasks (only when not dragging columns)
 					colEl.addEventListener('dragover', (e) => {
 						e.preventDefault();
+
+						// Only handle task dragging if we're not dragging a column
+						if (draggedColumnEl) {
+							return;
+						}
+
 						colEl.classList.add('drag-over');
 
 						const colContent = colEl.querySelector('.column-content');
@@ -520,6 +670,11 @@
 						e.preventDefault();
 						colEl.classList.remove('drag-over');
 
+						// Only handle task drops if we're not dragging a column
+						if (draggedColumnEl) {
+							return;
+						}
+
 						if (!dragged) return;
 
 						const colContent = colEl.querySelector('.column-content');
@@ -557,11 +712,25 @@
 
 						// Task title element
 						const textEl = document.createElement('span');
+						textEl.className = 'task-text';
 						applyDirection(textEl, task.text);
-						textEl.style.flex = '1';
 
 						// Show task info modal
 						textEl.onclick = () => showTaskInfoModal(task, column, index);
+
+						const globalTooltip = document.getElementById('global-tooltip');
+
+						// Tooltip logic: show only when truncated
+						textEl.addEventListener('mouseenter', () => {
+							if (textEl.scrollWidth > textEl.clientWidth) {
+								applyDirection(globalTooltip, task.text);
+								globalTooltip.classList.add('show');
+							}
+						});
+
+						textEl.addEventListener('mouseleave', () => {
+							globalTooltip.classList.remove('show');
+						});
 
 						// Priority badge
 						const badge = document.createElement('span');

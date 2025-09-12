@@ -161,6 +161,13 @@ function handleWebviewMessage(message: any, panel: vscode.WebviewPanel) {
 			}
 			break;
 
+		case 'moveColumn':
+			// Move a column to a new position
+			if (message.columnName !== undefined && message.newIndex !== undefined) {
+				kanban.moveColumn(message.columnName, message.newIndex);
+			}
+			break;
+
 		case 'addComment':
 			// Add a comment to a task
 			if (message.column !== undefined && message.index !== undefined && message.comment) {

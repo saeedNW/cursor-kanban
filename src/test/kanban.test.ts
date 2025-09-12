@@ -109,6 +109,46 @@ suite('Kanban', () => {
 		assert.strictEqual(persisted['Backlog'], undefined);
 	});
 
+	test('moveColumn reorders columns correctly', () => {
+		const filePath = makeInitialFile();
+		const kb = new Kanban(filePath);
+
+		// Add some tasks to different columns
+		kb.addTask('Todo', 'task 1');
+		kb.addTask('In Progress', 'task 2');
+		kb.addTask('Done', 'task 3');
+
+		// Get initial column order
+		let tasks = kb.getTasks();
+		let columnNames = Object.keys(tasks);
+		assert.deepStrictEqual(columnNames, ['Todo', 'In Progress', 'Done']);
+
+		// Move 'Done' column to the beginning (index 0)
+		kb.moveColumn('Done', 0);
+		tasks = kb.getTasks();
+		columnNames = Object.keys(tasks);
+		assert.deepStrictEqual(columnNames, ['Done', 'Todo', 'In Progress']);
+
+		// Move 'Todo' column to the end (index 2)
+		kb.moveColumn('Todo', 2);
+		tasks = kb.getTasks();
+		columnNames = Object.keys(tasks);
+		assert.deepStrictEqual(columnNames, ['Done', 'In Progress', 'Todo']);
+
+		// Verify tasks are still in their respective columns
+		assert.strictEqual(tasks['Done'].length, 1);
+		assert.strictEqual(tasks['In Progress'].length, 1);
+		assert.strictEqual(tasks['Todo'].length, 1);
+		assert.strictEqual(tasks['Done'][0].text, 'task 3');
+		assert.strictEqual(tasks['In Progress'][0].text, 'task 2');
+		assert.strictEqual(tasks['Todo'][0].text, 'task 1');
+
+		// Verify persistence
+		const persisted = readTasks(filePath);
+		const persistedColumnNames = Object.keys(persisted);
+		assert.deepStrictEqual(persistedColumnNames, ['Done', 'In Progress', 'Todo']);
+	});
+
 	test('addTaskComment, updateTaskComment, and removeTaskComment', () => {
 		const filePath = makeInitialFile();
 		const kb = new Kanban(filePath);
