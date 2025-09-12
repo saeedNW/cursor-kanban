@@ -974,6 +974,37 @@
 				}
 			});
 
+			/** Keyboard chord: Ctrl+G then Ctrl+T to open New Task modal */
+			(function registerChord() {
+				let awaitingSecond = false;
+				let timeoutId = null;
+				document.addEventListener('keydown', (e) => {
+					// Ignore if focused element is content-editable or inside inputs when using Ctrl modifiers
+					const tag = (document.activeElement && document.activeElement.tagName) || '';
+					if (['INPUT', 'TEXTAREA', 'SELECT'].includes(tag)) {
+						// allow chord even in inputs only when Ctrl is pressed to avoid interfering with typing
+						if (!e.ctrlKey && !e.metaKey) return;
+					}
+
+					if (!awaitingSecond) {
+						if ((e.ctrlKey || e.metaKey) && (e.key === 'g' || e.key === 'G')) {
+							e.preventDefault();
+							awaitingSecond = true;
+							clearTimeout(timeoutId);
+							timeoutId = setTimeout(() => (awaitingSecond = false), 1500);
+						}
+					} else {
+						if ((e.ctrlKey || e.metaKey) && (e.key === 't' || e.key === 'T')) {
+							e.preventDefault();
+							awaitingSecond = false;
+							// Open the modal
+							taskModal.style.display = 'flex';
+							addInput.focus();
+						}
+					}
+				});
+			})();
+
 			/** ---------------------- Listen for updates from extension ---------------------- */
 			window.addEventListener('message', (event) => {
 				const message = event.data;
