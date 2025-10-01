@@ -2,7 +2,7 @@
 	"name": "cursor-kanban",
 	"displayName": "cursor-kanban",
 	"description": "Simple Kanban board for Markdown tasks",
-	"version": "0.1.0",
+	"version": "0.2.0",
 	"publisher": "Saeed Norouzi",
 	"repository": {
 		"type": "git",

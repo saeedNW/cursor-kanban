@@ -4,6 +4,32 @@ All notable changes to the "cursor-kanban" extension will be documented in this 
 
 Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
 
+## [0.2.0] - 2025-10-01
+
+### Added
+
+- Task comments: Add, update, and remove per‑task comments; comments appear in the Task Info modal and serialize into markdown using `[Comments: ...]`
+- Unique Task IDs: Each task persists a stable `[id: ...]` used for reliable cross‑board moves and round‑trip parsing
+- Cross‑board drag & drop: Move tasks between different Kanban boards (different `tasks.md` files/panels)
+- Column reordering: Drag column handles to reorder columns; order is persisted to `tasks.md`
+- Theme toggle: Light/Dark theme with persistence via `localStorage`
+- Find in tasks: Built‑in find (Ctrl/Cmd+F) with highlighting and next/prev navigation
+- Keyboard chord: Ctrl/Cmd+G then Ctrl/Cmd+T opens the New Task modal
+- Command to open from any markdown: `cursor-kanban.openBoardFromFile` lets you pick a `.md` file to open as a board
+
+### Changed
+
+- Markdown format: Tasks now include `[id: ...]` and optional `[Comments: ...]`; existing files without IDs are automatically assigned IDs on read and written back
+- Drag and Drop: Improved placeholder and robustness, including edge cases and cross‑panel drops
+- File watching: Panels auto‑refresh with debounced updates when the underlying file changes
+- Documentation: README updated with new features, commands, and task file format details
+
+### Fixed
+
+- Ensured column order persistence when reordering columns
+- Robust handling of multi‑line notes and comment round‑trips
+- Safer drag state cleanup when dropping across panels
+
 ## [0.1.0] - 2025-09-11
 
 ### Added
