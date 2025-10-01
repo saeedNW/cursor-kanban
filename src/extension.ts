@@ -1,7 +1,12 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import * as vscode from 'vscode';
-import { Kanban } from './kanban';
+import { Kanban, moveTaskBetweenFiles } from './kanban';
+
+// Track open panels by file path so we can refresh them when files change
+const panelsByFile = new Map<string, vscode.WebviewPanel>();
+// Track file watchers so panels auto-refresh on external file changes
+const watchersByFile = new Map<string, fs.FSWatcher>();
 
 /**
  * VS Code extension activation function.
@@ -118,7 +123,39 @@ function openKanbanPanel(filePath: string, title: string) {
 	);
 
 	// Set the initial HTML content
-	panel.webview.html = getWebviewContent(panel, title);
+	panel.webview.html = getWebviewContent(panel, title, filePath);
+
+	// Track panel for this file
+	panelsByFile.set(filePath, panel);
+	panel.onDidDispose(() => {
+		panelsByFile.delete(filePath);
+		// Dispose watcher if any
+		const watcher = watchersByFile.get(filePath);
+		if (watcher) {
+			watcher.close();
+			watchersByFile.delete(filePath);
+		}
+	});
+
+	// Ensure file watcher to auto-refresh when file changes on disk
+	if (!watchersByFile.has(filePath)) {
+		try {
+			let debounceTimer: NodeJS.Timeout | undefined;
+			const watcher = fs.watch(filePath, () => {
+				if (debounceTimer) {
+					clearTimeout(debounceTimer);
+				}
+				debounceTimer = setTimeout(() => {
+					const p = panelsByFile.get(filePath);
+					if (p) {
+						const kb = new Kanban(filePath);
+						p.webview.postMessage({ command: 'update', tasks: kb.getTasks() });
+					}
+				}, 60);
+			});
+			watchersByFile.set(filePath, watcher);
+		} catch {}
+	}
 
 	// Update tasks when the panel becomes visible
 	panel.onDidChangeViewState(() => {
@@ -136,6 +173,8 @@ function openKanbanPanel(filePath: string, title: string) {
 
 	// Handle messages from the webview (panel-scoped Kanban instance)
 	panel.webview.onDidReceiveMessage((message) => {
+		// Always reload current board state before applying an action
+		kanban = new Kanban(filePath);
 		switch (message.command) {
 			case 'toggle':
 				kanban.toggleDone(message.column, message.index);
@@ -217,6 +256,52 @@ function openKanbanPanel(filePath: string, title: string) {
 					kanban.removeTaskComment(message.column, message.index, message.commentIndex);
 				}
 				break;
+
+			case 'moveAcrossBoards':
+				try {
+					const moved = moveTaskBetweenFiles(
+						message.sourceFilePath,
+						message.sourceColumn,
+						message.taskId,
+						message.targetFilePath,
+						message.targetColumn,
+						message.toIndex,
+					);
+					if (!moved) {
+						vscode.window.showWarningMessage('Task not found in source board.');
+					}
+
+					// If dropped into Done, ensure task is marked done in target board; otherwise mark not done
+					try {
+						const targetKb = new Kanban(message.targetFilePath);
+						const list = targetKb.getTasks()[message.targetColumn] || [];
+						const idx = list.findIndex((t) => t.id === message.taskId);
+						if (idx !== -1) {
+							if ((message.targetColumn as string).toLowerCase() === 'done') {
+								targetKb.setDone(message.targetColumn, idx);
+							} else {
+								targetKb.setNotDone(message.targetColumn, idx);
+							}
+						}
+					} catch {}
+
+					// Refresh source panel if open
+					const sourcePanel = panelsByFile.get(message.sourceFilePath);
+					if (sourcePanel) {
+						const srcKb = new Kanban(message.sourceFilePath);
+						sourcePanel.webview.postMessage({ command: 'update', tasks: srcKb.getTasks() });
+					}
+
+					// Refresh target panel if open
+					const targetPanel = panelsByFile.get(message.targetFilePath);
+					if (targetPanel) {
+						const tgtKb = new Kanban(message.targetFilePath);
+						targetPanel.webview.postMessage({ command: 'update', tasks: tgtKb.getTasks() });
+					}
+				} catch (err: any) {
+					vscode.window.showErrorMessage(err?.message ?? String(err));
+				}
+				break;
 		}
 
 		// Send updated tasks back to the webview
@@ -233,14 +318,17 @@ function openKanbanPanel(filePath: string, title: string) {
  * @param title - Panel title (shown in the webview)
  * @returns HTML string for the webview
  */
-function getWebviewContent(panel: vscode.WebviewPanel, title: string): string {
+function getWebviewContent(panel: vscode.WebviewPanel, title: string, filePath: string): string {
 	const htmlPath = vscode.Uri.file(path.join(__dirname, '..', 'ui', 'kanban.html'));
 	let html = fs.readFileSync(htmlPath.fsPath, 'utf-8');
 
 	// Inject title as a JS variable in the HTML
 	html = html.replace(
 		'</head>',
-		`<script>const workspaceName = "${title.replace(/"/g, '\\"')}";</script></head>`,
+		`<script>const workspaceName = "${title.replace(
+			/"/g,
+			'\\"',
+		)}"; const boardFilePath = "${filePath.replace(/"/g, '\\"')}";</script></head>`,
 	);
 
 	return html;

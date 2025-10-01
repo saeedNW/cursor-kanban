@@ -541,6 +541,39 @@
 			let currentTasks = {};
 
 			/**
+			 * Clear global drag visuals (placeholders, drag-over classes, faded tasks)
+			 */
+			function clearGlobalDragUI() {
+				// Remove any placeholders
+				document.querySelectorAll('.placeholder').forEach((el) => {
+					if (el.parentElement) el.parentElement.removeChild(el);
+				});
+				// Remove drag-over highlighting
+				document
+					.querySelectorAll('.column.drag-over')
+					.forEach((el) => el.classList.remove('drag-over'));
+				// Reset any dimmed tasks
+				document.querySelectorAll('.task').forEach((el) => (el.style.opacity = '1'));
+			}
+
+			// Global safety net: if the mouse leaves the window during a drag, clear UI
+			window.addEventListener('dragleave', (e) => {
+				// Only when leaving the window/document
+				if (!e.relatedTarget && (!e.toElement || e.toElement === null)) {
+					clearGlobalDragUI();
+					dragged = null;
+					draggedIndex = null;
+					draggedColumn = null;
+				}
+			});
+
+			// Prevent default on body dragover to allow drop in nested panels reliably
+			document.addEventListener('dragover', (e) => {
+				e.preventDefault();
+				if (e.dataTransfer) e.dataTransfer.dropEffect = 'move';
+			});
+
+			/**
 			 * Apply correct text direction based on first character
 			 * @param {HTMLElement} el - The element to apply direction
 			 * @param {string} text - The text content
@@ -644,6 +677,7 @@
 					// Column drag over (on the column element)
 					colEl.addEventListener('dragover', (e) => {
 						e.preventDefault();
+						if (e.dataTransfer) e.dataTransfer.dropEffect = 'move';
 						if (draggedColumnEl && draggedColumnEl !== colEl) {
 							colEl.classList.add('drag-over');
 						}
@@ -739,33 +773,68 @@
 							return;
 						}
 
-						if (!dragged) return;
+						// Attempt cross-board detection via DataTransfer payload (before checking local drag state)
+						let xfer = null;
+						try {
+							let raw = e.dataTransfer && e.dataTransfer.getData('application/x-kanban');
+							if (!raw) {
+								raw = e.dataTransfer && e.dataTransfer.getData('text/plain');
+							}
+							if (raw) xfer = JSON.parse(raw);
+						} catch {}
+
+						if (!dragged && !xfer) return;
 
 						const colContent = colEl.querySelector('.column-content');
 
-						// Filter out placeholder and dragged element
-						const taskEls = Array.from(colContent.children).filter(
-							(c) => !c.classList.contains('placeholder') && c !== dragged.element,
-						);
-
-						// Compute toIndex
-						let toIndex = Array.from(colContent.children).indexOf(placeholder);
-
-						vscode.postMessage({
-							command: 'move',
-							fromColumn: draggedColumn,
-							toColumn: column,
-							fromIndex: draggedIndex,
-							toIndex: toIndex,
+						// Filter out placeholder and, if present locally, the dragged element
+						const taskEls = Array.from(colContent.children).filter((c) => {
+							if (c.classList.contains('placeholder')) return false;
+							if (dragged && c === dragged.element) return false;
+							return true;
 						});
 
-						// Reset drag state
+						// Compute toIndex; if placeholder not found, append to end
+						let toIndex = Array.from(colContent.children).indexOf(placeholder);
+						if (toIndex < 0) {
+							toIndex = colContent.children.length;
+						}
+
+						const thisBoard = typeof boardFilePath !== 'undefined' ? boardFilePath : undefined;
+
+						if (
+							xfer &&
+							xfer.sourceFilePath &&
+							thisBoard &&
+							xfer.sourceFilePath !== thisBoard &&
+							xfer.taskId
+						) {
+							// Cross-board move (from another panel)
+							vscode.postMessage({
+								command: 'moveAcrossBoards',
+								sourceFilePath: xfer.sourceFilePath,
+								sourceColumn: xfer.sourceColumn,
+								taskId: xfer.taskId,
+								targetFilePath: thisBoard,
+								targetColumn: column,
+								toIndex: toIndex,
+							});
+						} else {
+							// Intra-board move (within same panel)
+							vscode.postMessage({
+								command: 'move',
+								fromColumn: draggedColumn,
+								toColumn: column,
+								fromIndex: draggedIndex,
+								toIndex: toIndex,
+							});
+						}
+
+						// Reset drag state and visuals
 						dragged = null;
 						draggedIndex = null;
 						draggedColumn = null;
-
-						// Remove placeholder
-						if (placeholder.parentElement) placeholder.parentElement.removeChild(placeholder);
+						clearGlobalDragUI();
 					});
 
 					// ---------------------- Render Tasks ----------------------
@@ -827,13 +896,32 @@
 						taskEl.appendChild(removeBtn);
 
 						// Drag events for task
-						taskEl.addEventListener('dragstart', () => {
+						taskEl.addEventListener('dragstart', (e) => {
 							dragged = { task, element: taskEl };
 							draggedIndex = index;
 							draggedColumn = column;
 							taskEl.style.opacity = '0.4';
+							// Populate DataTransfer so other panels can detect cross-board drags
+							try {
+								const payload = {
+									sourceFilePath: typeof boardFilePath !== 'undefined' ? boardFilePath : undefined,
+									sourceColumn: column,
+									taskId: task.id,
+								};
+								e.dataTransfer?.setData('application/x-kanban', JSON.stringify(payload));
+								// Also set text/plain for environments that strip custom MIME types
+								e.dataTransfer?.setData('text/plain', JSON.stringify(payload));
+								if (e.dataTransfer) e.dataTransfer.effectAllowed = 'copyMove';
+							} catch {}
 						});
-						taskEl.addEventListener('dragend', () => (taskEl.style.opacity = '1'));
+						taskEl.addEventListener('dragend', () => {
+							taskEl.style.opacity = '1';
+							// Ensure cleanup even if drop occurred in another panel
+							dragged = null;
+							draggedIndex = null;
+							draggedColumn = null;
+							clearGlobalDragUI();
+						});
 
 						colContent.appendChild(taskEl);
 					});

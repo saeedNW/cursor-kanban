@@ -2,7 +2,7 @@ import * as assert from 'assert';
 import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
-import { Kanban } from '../kanban';
+import { Kanban, moveTaskBetweenFiles } from '../kanban';
 import { readTasks } from '../md-parser';
 
 suite('Kanban', () => {
@@ -23,7 +23,8 @@ suite('Kanban', () => {
 
 		let tasks = kb.getTasks();
 		assert.strictEqual(tasks['Todo'].length, 2);
-		assert.deepStrictEqual(tasks['Todo'][0], {
+		const firstNoId = (({ id, ...rest }) => rest)(tasks['Todo'][0]);
+		assert.deepStrictEqual(firstNoId, {
 			text: 'write tests',
 			done: false,
 			priority: 'Medium',
@@ -42,7 +43,8 @@ suite('Kanban', () => {
 		kb.removeTask('Todo', 0);
 		tasks = kb.getTasks();
 		assert.strictEqual(tasks['Todo'].length, 1);
-		assert.deepStrictEqual(tasks['Todo'][0], {
+		const onlyNoId = (({ id, ...rest }) => rest)(tasks['Todo'][0]);
+		assert.deepStrictEqual(onlyNoId, {
 			text: 'refactor',
 			done: true,
 			priority: 'Medium',
@@ -51,7 +53,8 @@ suite('Kanban', () => {
 
 		// persisted
 		const persisted = readTasks(filePath);
-		assert.deepStrictEqual(persisted['Todo'][0], {
+		const persistedNoId = (({ id, ...rest }) => rest)(persisted['Todo'][0]);
+		assert.deepStrictEqual(persistedNoId, {
 			text: 'refactor',
 			done: true,
 			priority: 'Medium',
@@ -69,7 +72,8 @@ suite('Kanban', () => {
 		let tasks = kb.getTasks();
 		assert.strictEqual(tasks['Todo'].length, 1);
 		assert.strictEqual(tasks['In Progress'].length, 1);
-		assert.deepStrictEqual(tasks['In Progress'][0], {
+		const movedNoId = (({ id, ...rest }) => rest)(tasks['In Progress'][0]);
+		assert.deepStrictEqual(movedNoId, {
 			text: 'task 1',
 			done: false,
 			priority: 'Medium',
@@ -79,7 +83,8 @@ suite('Kanban', () => {
 		// persisted
 		const persisted = readTasks(filePath);
 		assert.strictEqual(persisted['In Progress'].length, 1);
-		assert.deepStrictEqual(persisted['In Progress'][0], {
+		const persistedMovedNoId = (({ id, ...rest }) => rest)(persisted['In Progress'][0]);
+		assert.deepStrictEqual(persistedMovedNoId, {
 			text: 'task 1',
 			done: false,
 			priority: 'Medium',
@@ -156,7 +161,8 @@ suite('Kanban', () => {
 		// Add task without comments
 		kb.addTask('Todo', 'task with comments', 'High', 'Some notes');
 		let tasks = kb.getTasks();
-		assert.deepStrictEqual(tasks['Todo'][0], {
+		const taskNoId = (({ id, ...rest }) => rest)(tasks['Todo'][0]);
+		assert.deepStrictEqual(taskNoId, {
 			text: 'task with comments',
 			done: false,
 			priority: 'High',
@@ -222,5 +228,42 @@ suite('Kanban', () => {
 		assert.strictEqual(p1['Todo']?.length ?? 0, 0);
 		assert.strictEqual(p2['Todo'].length, 1);
 		assert.strictEqual(p2['Todo'][0].done, true);
+	});
+
+	test('moveTaskBetweenFiles moves task with notes and comments and persists', () => {
+		const filePath1 = makeInitialFile();
+		const filePath2 = makeInitialFile();
+
+		const kb1 = new Kanban(filePath1);
+		const kb2 = new Kanban(filePath2);
+
+		// Prepare source with a detailed task
+		kb1.addTask('Todo', 'cross-board task', 'High', 'Line 1 note\nLine 2 note');
+		kb1.addTaskComment('Todo', 0, 'First');
+		kb1.addTaskComment('Todo', 0, 'Second');
+
+		// Ensure target column exists but is empty
+		kb2.addColumn('In Progress');
+
+		const sourceBefore = kb1.getTasks();
+		const taskId = sourceBefore['Todo'][0].id;
+
+		const moved = moveTaskBetweenFiles(filePath1, 'Todo', taskId, filePath2, 'In Progress');
+		assert.ok(moved, 'Expected task to be moved');
+
+		// Validate source file no longer has the task
+		const sourcePersisted = readTasks(filePath1);
+		assert.strictEqual(sourcePersisted['Todo']?.length ?? 0, 0);
+
+		// Validate target file has the moved task with all properties
+		const targetPersisted = readTasks(filePath2);
+		assert.strictEqual(targetPersisted['In Progress'].length, 1);
+		const movedTask = targetPersisted['In Progress'][0];
+		assert.strictEqual(movedTask.id, taskId);
+		assert.strictEqual(movedTask.text, 'cross-board task');
+		assert.strictEqual(movedTask.done, false);
+		assert.strictEqual(movedTask.priority, 'High');
+		assert.strictEqual(movedTask.notes, 'Line 1 note\nLine 2 note');
+		assert.deepStrictEqual(movedTask.comments, ['First', 'Second']);
 	});
 });

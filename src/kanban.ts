@@ -1,3 +1,4 @@
+import * as crypto from 'crypto';
 import { readTasks, Task, Tasks, writeTasks } from './md-parser';
 
 /**
@@ -27,7 +28,7 @@ export class Kanban {
 		if (!this.tasks[column]) {
 			this.tasks[column] = [];
 		}
-		this.tasks[column].push({ text, priority, done: false, notes });
+		this.tasks[column].push({ text, priority, done: false, notes, id: crypto.randomUUID() });
 		this.save();
 	}
 
@@ -40,6 +41,9 @@ export class Kanban {
 	insertTask(column: string, index: number, task: Task) {
 		if (!this.tasks[column]) {
 			this.tasks[column] = [];
+		}
+		if (!task.id) {
+			task.id = crypto.randomUUID();
 		}
 		this.tasks[column].splice(index, 0, task);
 		this.save();
@@ -255,4 +259,59 @@ export class Kanban {
 	private save() {
 		writeTasks(this.filePath, this.tasks);
 	}
+}
+
+/**
+ * Move a task (by id) from a source board file/column to a target board file/column.
+ * The task and all of its properties (title/text, done, priority, notes, comments, id)
+ * are removed from the source file and inserted into the target file.
+ *
+ * @param sourceFilePath Absolute path to the source markdown file
+ * @param sourceColumn Column name in the source file
+ * @param taskId The id of the task to move
+ * @param targetFilePath Absolute path to the target markdown file
+ * @param targetColumn Column name in the target file
+ * @param toIndex Optional index to insert at in the target column (defaults to end)
+ * @returns The moved task, or null if not found in the source
+ */
+export function moveTaskBetweenFiles(
+	sourceFilePath: string,
+	sourceColumn: string,
+	taskId: string,
+	targetFilePath: string,
+	targetColumn: string,
+	toIndex?: number,
+): Task | null {
+	const sourceTasksByColumn = readTasks(sourceFilePath);
+	const sourceColumnTasks = sourceTasksByColumn[sourceColumn];
+	if (!sourceColumnTasks) {
+		throw new Error(`Source column "${sourceColumn}" not found in ${sourceFilePath}`);
+	}
+
+	const sourceIndex = sourceColumnTasks.findIndex((t) => t.id === taskId);
+	if (sourceIndex === -1) {
+		return null;
+	}
+
+	const [movedTask] = sourceColumnTasks.splice(sourceIndex, 1);
+	// Persist source after removal
+	writeTasks(sourceFilePath, sourceTasksByColumn);
+
+	// Load target and insert
+	const targetTasksByColumn = readTasks(targetFilePath);
+	if (!targetTasksByColumn[targetColumn]) {
+		targetTasksByColumn[targetColumn] = [];
+	}
+
+	const targetList = targetTasksByColumn[targetColumn];
+	if (toIndex !== undefined && toIndex >= 0 && toIndex <= targetList.length) {
+		targetList.splice(toIndex, 0, movedTask);
+	} else {
+		targetList.push(movedTask);
+	}
+
+	// Persist target after insertion
+	writeTasks(targetFilePath, targetTasksByColumn);
+
+	return movedTask;
 }

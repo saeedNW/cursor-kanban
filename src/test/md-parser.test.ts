@@ -1,4 +1,5 @@
 import * as assert from 'assert';
+import * as crypto from 'crypto';
 import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
@@ -29,14 +30,18 @@ suite('md-parser', () => {
 		const filePath = createTempTasksFile(md);
 		const tasks = readTasks(filePath);
 
-		assert.deepStrictEqual(tasks['Todo'], [
+		const todoNoIds = tasks['Todo'].map(({ id, ...t }) => t);
+		const inProgressNoIds = tasks['In Progress'].map(({ id, ...t }) => t);
+		const doneNoIds = tasks['Done'].map(({ id, ...t }) => t);
+
+		assert.deepStrictEqual(todoNoIds, [
 			{ text: 'task A', done: false, priority: 'Medium' },
 			{ text: 'task B', done: true, priority: 'Medium' },
 		]);
-		assert.deepStrictEqual(tasks['In Progress'], [
+		assert.deepStrictEqual(inProgressNoIds, [
 			{ text: 'working on it', done: false, priority: 'Medium' },
 		]);
-		assert.deepStrictEqual(tasks['Done'], [{ text: 'finished', done: true, priority: 'Medium' }]);
+		assert.deepStrictEqual(doneNoIds, [{ text: 'finished', done: true, priority: 'Medium' }]);
 	});
 
 	test('readTasks parses multiple comments with [Comments: ...] syntax', () => {
@@ -53,7 +58,9 @@ suite('md-parser', () => {
 		const filePath = createTempTasksFile(md);
 		const tasks = readTasks(filePath);
 
-		assert.deepStrictEqual(tasks['Todo'], [
+		const todoNoIds = tasks['Todo'].map(({ id, ...t }) => t);
+
+		assert.deepStrictEqual(todoNoIds, [
 			{
 				text: 'task with comments',
 				done: false,
@@ -76,10 +83,10 @@ suite('md-parser', () => {
 
 		const tasks: Tasks = {
 			Todo: [
-				{ text: 'task A', done: false, priority: 'High' },
-				{ text: 'task B', done: true, priority: 'Low' },
+				{ text: 'task A', done: false, priority: 'High', id: crypto.randomUUID() },
+				{ text: 'task B', done: true, priority: 'Low', id: crypto.randomUUID() },
 			],
-			Done: [{ text: 'finished', done: true, priority: 'Medium' }],
+			Done: [{ text: 'finished', done: true, priority: 'Medium', id: crypto.randomUUID() }],
 		};
 
 		writeTasks(filePath, tasks);
@@ -109,12 +116,14 @@ suite('md-parser', () => {
 					priority: 'High',
 					notes: 'This is a note',
 					comments: ['First comment', 'Second comment'],
+					id: crypto.randomUUID(),
 				},
 				{
 					text: 'task with single comment',
 					done: true,
 					priority: 'Low',
 					comments: ['Single comment'],
+					id: crypto.randomUUID(),
 				},
 			],
 		};

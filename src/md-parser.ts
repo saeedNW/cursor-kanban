@@ -1,3 +1,4 @@
+import * as crypto from 'crypto';
 import * as fs from 'fs';
 
 /**
@@ -9,6 +10,7 @@ export interface Task {
 	priority: 'Highest' | 'High' | 'Medium' | 'Low' | 'Lowest';
 	notes?: string;
 	comments?: string[];
+	id: string; // crypto.randomUUID()
 }
 
 /**
@@ -31,6 +33,7 @@ export function readTasks(filePath: string): Tasks {
 	const content = fs.readFileSync(filePath, 'utf-8');
 	const sections = content.split(/^##\s+/gm).filter(Boolean);
 	const tasks: Tasks = {};
+	let idsAdded = false;
 
 	for (const section of sections) {
 		const lines = section.split('\n').filter(Boolean);
@@ -47,21 +50,29 @@ export function readTasks(filePath: string): Tasks {
 				const done = line.startsWith('- [x]');
 				let taskText = line.slice(6).trim(); // remove '- [ ] ' or '- [x] '
 
-				// Extract priority and comments using a more robust approach
+				// Extract id, priority and comments using a robust approach
 				let priority = 'Medium';
-				let comments;
+				let comments: string[] | undefined;
+				let id: string | undefined;
+
+				// Look for [id: ...] pattern
+				const idMatch = taskText.match(/\[id:\s*([^\]]+)\]/i);
+				if (idMatch) {
+					id = idMatch[1].trim();
+					taskText = taskText.replace(/\s*\[id:\s*[^\]]+\]/i, '').trim();
+				}
 
 				// Look for [Priority: ...] pattern
-				const priorityMatch = taskText.match(/(.*?)\s*\[Priority:\s*([^\]]+)\]/);
+				const priorityMatch = taskText.match(/\[Priority:\s*([^\]]+)\]/i);
 				if (priorityMatch) {
-					priority = priorityMatch[2].trim();
-					taskText = taskText.replace(/\s*\[Priority:\s*[^\]]+\]/, '').trim();
+					priority = priorityMatch[1].trim();
+					taskText = taskText.replace(/\s*\[Priority:\s*[^\]]+\]/i, '').trim();
 				}
 
 				// Look for [Comments: ...] pattern
-				const commentsMatch = taskText.match(/(.*?)\s*\[Comments:\s*([^\]]+)\]/);
+				const commentsMatch = taskText.match(/\[Comments:\s*([^\]]+)\]/i);
 				if (commentsMatch) {
-					const commentsText = commentsMatch[2].trim();
+					const commentsText = commentsMatch[1].trim();
 					const commentArray = commentsText
 						.split('|')
 						.map((c) => c.trim())
@@ -69,7 +80,12 @@ export function readTasks(filePath: string): Tasks {
 					if (commentArray.length > 0) {
 						comments = commentArray;
 					}
-					taskText = taskText.replace(/\s*\[Comments:\s*[^\]]+\]/, '').trim();
+					taskText = taskText.replace(/\s*\[Comments:\s*[^\]]+\]/i, '').trim();
+				}
+
+				if (!id) {
+					id = crypto.randomUUID();
+					idsAdded = true;
 				}
 
 				currentTask = {
@@ -77,6 +93,7 @@ export function readTasks(filePath: string): Tasks {
 					done,
 					priority: priority as Task['priority'],
 					...(comments && { comments }),
+					id,
 				};
 
 				tasks[columnName].push(currentTask);
@@ -88,6 +105,10 @@ export function readTasks(filePath: string): Tasks {
 				}
 			}
 		}
+	}
+
+	if (idsAdded) {
+		writeTasks(filePath, tasks);
 	}
 
 	return tasks;
@@ -109,7 +130,9 @@ export function writeTasks(filePath: string, tasks: Tasks): void {
 		content += `## ${column}\n`;
 
 		for (const task of taskList) {
-			let taskLine = `- [${task.done ? 'x' : ' '}] ${task.text} [Priority: ${task.priority}]`;
+			let taskLine = `- [${task.done ? 'x' : ' '}] ${task.text} [id: ${task.id}] [Priority: ${
+				task.priority
+			}]`;
 			if (task.comments && task.comments.length > 0) {
 				const commentsText = task.comments.join(' | ');
 				taskLine += ` [Comments: ${commentsText}]`;
@@ -124,6 +147,10 @@ export function writeTasks(filePath: string, tasks: Tasks): void {
 		}
 
 		content += '\n';
+	}
+
+	if (typeof (global as any) === 'object') {
+		// no-op placeholder
 	}
 
 	fs.writeFileSync(filePath, content, 'utf-8');
