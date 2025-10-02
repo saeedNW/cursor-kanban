@@ -17,6 +17,21 @@ export class Kanban {
 	}
 
 	/**
+	 * Update the priority of a task.
+	 * @param column Column name
+	 * @param index Task index
+	 * @param priority New priority value
+	 */
+	setTaskPriority(column: string, index: number, priority: Task['priority']) {
+		const task = this.tasks[column]?.[index];
+		if (!task) {
+			return;
+		}
+		task.priority = priority;
+		this.save();
+	}
+
+	/**
 	 * Add a new task to a column.
 	 * If the column does not exist, it is created automatically.
 	 * @param column Name of the column

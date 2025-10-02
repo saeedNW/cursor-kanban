@@ -882,6 +882,52 @@
 						};
 						badge.style.backgroundColor = colors[task.priority] || '#F59E0B';
 
+						// Double-click to edit priority via dropdown
+						badge.addEventListener('dblclick', (e) => {
+							e.preventDefault();
+							e.stopPropagation();
+							// Temporarily disable dragging while editing
+							taskEl.draggable = false;
+							const select = document.createElement('select');
+							select.style.fontSize = '0.75rem';
+							select.style.padding = '2px 6px';
+							select.style.borderRadius = '4px';
+							select.style.marginLeft = '8px';
+							select.style.background = 'var(--task-bg)';
+							select.style.color = 'var(--text)';
+							['Highest', 'High', 'Medium', 'Low', 'Lowest'].forEach((p) => {
+								const opt = document.createElement('option');
+								opt.value = p;
+								opt.textContent = p;
+								if (p === task.priority) opt.selected = true;
+								select.appendChild(opt);
+							});
+
+							const commit = () => {
+								const newPriority = select.value;
+								badge.textContent = newPriority;
+								badge.style.backgroundColor = colors[newPriority] || '#F59E0B';
+								badge.style.display = '';
+								select.replaceWith(badge);
+								// Re-enable dragging
+								taskEl.draggable = true;
+								if (newPriority !== task.priority) {
+									vscode.postMessage({
+										command: 'updatePriority',
+										column,
+										index,
+										priority: newPriority,
+									});
+								}
+							};
+
+							select.addEventListener('change', commit);
+							select.addEventListener('blur', commit);
+
+							badge.replaceWith(select);
+							select.focus();
+						});
+
 						// Remove task button
 						const removeBtn = document.createElement('button');
 						removeBtn.textContent = '×';
@@ -940,7 +986,23 @@
 			function showTaskInfoModal(task, column, taskIndex) {
 				const taskInfoModal = document.getElementById('task-info-modal');
 				applyDirection(document.getElementById('info-title'), task.text);
-				document.getElementById('info-priority').textContent = task.priority;
+				const infoPriorityEl = document.getElementById('info-priority');
+				infoPriorityEl.textContent = task.priority;
+				// Style the modal priority like the board badge
+				const modalPriorityColors = {
+					Highest: '#B91C1C',
+					High: '#EA580C',
+					Medium: '#F59E0B',
+					Low: '#2563EB',
+					Lowest: '#047857',
+				};
+				infoPriorityEl.style.display = 'inline-block';
+				infoPriorityEl.style.marginLeft = '8px';
+				infoPriorityEl.style.fontSize = '0.75rem';
+				infoPriorityEl.style.padding = '2px 6px';
+				infoPriorityEl.style.borderRadius = '4px';
+				infoPriorityEl.style.color = 'white';
+				infoPriorityEl.style.backgroundColor = modalPriorityColors[task.priority] || '#F59E0B';
 				document.getElementById('info-status').textContent = column;
 
 				const descEl = document.getElementById('info-description');
@@ -1012,6 +1074,52 @@
 				} else {
 					commentsEl.textContent = '(No comments)';
 				}
+
+				// Enable dblclick priority editing inside modal
+				infoPriorityEl.onclick = (e) => e.stopPropagation();
+				infoPriorityEl.ondblclick = (e) => {
+					e.preventDefault();
+					e.stopPropagation();
+					const select = document.createElement('select');
+					select.style.fontSize = '0.9rem';
+					select.style.padding = '2px 6px';
+					select.style.borderRadius = '4px';
+					select.style.background = 'var(--task-bg)';
+					select.style.color = 'var(--text)';
+					['Highest', 'High', 'Medium', 'Low', 'Lowest'].forEach((p) => {
+						const opt = document.createElement('option');
+						opt.value = p;
+						opt.textContent = p;
+						if (p === task.priority) opt.selected = true;
+						select.appendChild(opt);
+					});
+
+					const restore = () => {
+						infoPriorityEl.style.display = '';
+						select.replaceWith(infoPriorityEl);
+					};
+
+					const commit = () => {
+						const newPriority = select.value;
+						infoPriorityEl.textContent = newPriority;
+						infoPriorityEl.style.backgroundColor = modalPriorityColors[newPriority] || '#F59E0B';
+						restore();
+						if (window.currentEditingTask && newPriority !== task.priority) {
+							vscode.postMessage({
+								command: 'updatePriority',
+								column: window.currentEditingTask.column,
+								index: window.currentEditingTask.taskIndex,
+								priority: newPriority,
+							});
+						}
+					};
+
+					select.addEventListener('change', commit);
+					select.addEventListener('blur', commit);
+
+					infoPriorityEl.replaceWith(select);
+					select.focus();
+				};
 
 				// Store current task info for editing
 				window.currentEditingTask = { task, column, taskIndex };

@@ -176,6 +176,16 @@ function openKanbanPanel(filePath: string, title: string) {
 		// Always reload current board state before applying an action
 		kanban = new Kanban(filePath);
 		switch (message.command) {
+			case 'updatePriority':
+				if (
+					message.column !== undefined &&
+					message.index !== undefined &&
+					message.priority !== undefined
+				) {
+					kanban.setTaskPriority(message.column, message.index, message.priority);
+				}
+				break;
+
 			case 'toggle':
 				kanban.toggleDone(message.column, message.index);
 				break;
