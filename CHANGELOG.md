@@ -4,6 +4,16 @@ All notable changes to the "cursor-kanban" extension will be documented in this 
 
 Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
 
+## [0.2.1] - 2025-11-28
+
+### Changed
+
+- Updated `engines.vscode` in `package.json` to match recent VS Code versions, ensuring compatibility with the latest VS Code releases.
+
+### Fixed
+
+- Prevented extension loading errors caused by version mismatch between the extension and VS Code.
+
 ## [0.2.0] - 2025-10-01
 
 ### Added

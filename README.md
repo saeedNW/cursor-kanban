@@ -91,7 +91,7 @@ Notes:
 
 ## Requirements
 
-- VS Code/Cursor `^1.99.3`.
+- VS Code/Cursor `^1.105.1`.
 
 ## Settings
 
