@@ -69,10 +69,9 @@
 				flex-shrink: 0;
 				display: flex;
 				gap: 16px;
-				padding: 8px 16px 8px 16px;
-				margin-bottom: 0;
+				padding: 8px 16px;
 				flex-wrap: wrap;
-				background-color: var(--bg); /* ensure it stays above board */
+				background-color: var(--bg);
 			}
 
 			.board {
@@ -81,8 +80,8 @@
 				gap: 24px;
 				padding: 8px 16px;
 				overflow-x: auto;
-				overflow-y: auto; /* vertical scroll only for the board */
-				min-height: 0; /* allow flex shrinking */
+				overflow-y: auto;
+				min-height: 0;
 				align-items: flex-start;
 			}
 
@@ -136,6 +135,23 @@
 			.column-content {
 				flex: 1;
 				min-height: 20px;
+			}
+
+			/* Drag handle for reordering columns */
+			.drag-handle {
+				cursor: move;
+				color: var(--text-light);
+				font-size: 12px;
+				padding: 4px;
+				margin-right: 8px;
+				line-height: 1;
+				user-select: none;
+			}
+
+			/* Column title inside header */
+			.column-title {
+				flex: 1;
+				margin: 0;
 			}
 
 			.task {
@@ -410,9 +426,9 @@
 				text-align: right;
 			}
 
-			/* Highlights */
+			/* Highlights for find */
 			.task.match .task-text {
-				background: rgba(250, 204, 21, 0.35); /* amber-300 @ ~35% */
+				background: rgba(250, 204, 21, 0.35);
 				border-radius: 4px;
 				padding: 1px 2px;
 			}
@@ -449,8 +465,6 @@
 
 		<div class="controls">
 			<button id="open-task-modal" class="btn-primary">+ Add Task</button>
-
-			<!-- Changed: Now a button that opens the column modal -->
 			<button id="open-column-modal" class="btn-secondary">+ Add Column</button>
 			<button id="theme-toggle" class="btn-secondary" title="Toggle dark/light theme">
 				🌙 Dark
@@ -571,12 +585,21 @@
 			 */
 			const vscode = acquireVsCodeApi();
 
-			/** Drag state */
+			/** Priority color mapping (shared across badges and modals) */
+			const PRIORITY_COLORS = {
+				Highest: '#B91C1C',
+				High: '#EA580C',
+				Medium: '#F59E0B',
+				Low: '#2563EB',
+				Lowest: '#047857',
+			};
+
+			/** Drag state for tasks */
 			let dragged = null;
 			let draggedIndex = null;
 			let draggedColumn = null;
 
-			/** Column drag state */
+			/** Drag state for columns */
 			let draggedColumnEl = null;
 			let draggedColumnName = null;
 
@@ -584,24 +607,20 @@
 			let currentTasks = {};
 
 			/**
-			 * Clear global drag visuals (placeholders, drag-over classes, faded tasks)
+			 * Clear all drag‑related visual indicators (placeholders, highlights, opacity)
 			 */
 			function clearGlobalDragUI() {
-				// Remove any placeholders
 				document.querySelectorAll('.placeholder').forEach((el) => {
 					if (el.parentElement) el.parentElement.removeChild(el);
 				});
-				// Remove drag-over highlighting
 				document
 					.querySelectorAll('.column.drag-over')
 					.forEach((el) => el.classList.remove('drag-over'));
-				// Reset any dimmed tasks
 				document.querySelectorAll('.task').forEach((el) => (el.style.opacity = '1'));
 			}
 
-			// Global safety net: if the mouse leaves the window during a drag, clear UI
+			// Safety net: when mouse leaves the window during a drag, reset everything
 			window.addEventListener('dragleave', (e) => {
-				// Only when leaving the window/document
 				if (!e.relatedTarget && (!e.toElement || e.toElement === null)) {
 					clearGlobalDragUI();
 					dragged = null;
@@ -610,22 +629,21 @@
 				}
 			});
 
-			// Prevent default on body dragover to allow drop in nested panels reliably
+			// Allow drops anywhere on the page
 			document.addEventListener('dragover', (e) => {
 				e.preventDefault();
 				if (e.dataTransfer) e.dataTransfer.dropEffect = 'move';
 			});
 
 			/**
-			 * Apply correct text direction based on first character
-			 * @param {HTMLElement} el - The element to apply direction
+			 * Apply RTL direction if text starts with a Persian/Arabic character.
+			 * @param {HTMLElement} el - The element to update
 			 * @param {string} text - The text content
 			 */
 			function applyDirection(el, text) {
 				el.textContent = text;
 				if (!text) return;
 
-				// Regex for Persian/Arabic characters
 				const persianRegex = /^[\u0600-\u06FF]/;
 				if (persianRegex.test(text[0])) {
 					el.style.direction = 'rtl';
@@ -637,15 +655,15 @@
 			}
 
 			/**
-			 * Render the Kanban board and set up drag/drop and modal logic
-			 * @param {Object} tasks Tasks grouped by column
+			 * Render the Kanban board from a column → tasks mapping.
+			 * @param {Object} tasks - Tasks grouped by column name
 			 */
 			function renderBoard(tasks) {
-				currentTasks = tasks; // store latest tasks for modals
+				currentTasks = tasks;
 				const board = document.getElementById('board');
 				board.innerHTML = '';
 
-				// Populate column dropdown for task modal
+				// Update the column dropdown used by the task creation modal
 				const colSelect = document.getElementById('new-task-column');
 				colSelect.innerHTML = '';
 				Object.keys(tasks).forEach((col) => {
@@ -655,31 +673,25 @@
 					colSelect.appendChild(opt);
 				});
 
-				// Render each column
+				// Build each column
 				Object.entries(tasks).forEach(([column, taskList]) => {
 					const colEl = document.createElement('div');
 					colEl.className = 'column';
 					colEl.dataset.column = column;
 
-					// Column header
+					// --- Column header ---
 					const colHeader = document.createElement('div');
 					colHeader.className = 'column-header';
 
-					// Drag handle
 					const dragHandle = document.createElement('div');
-					dragHandle.innerHTML = '⋮⋮';
-					dragHandle.style.cursor = 'move';
-					dragHandle.style.color = 'var(--text-light)';
-					dragHandle.style.fontSize = '12px';
-					dragHandle.style.padding = '4px';
-					dragHandle.style.marginRight = '8px';
-					dragHandle.style.lineHeight = '1';
+					dragHandle.className = 'drag-handle';
+					dragHandle.textContent = '⋮⋮';
 					dragHandle.title = 'Drag to reorder column';
+					dragHandle.draggable = true;
 
 					const colTitle = document.createElement('h3');
+					colTitle.className = 'column-title';
 					colTitle.textContent = column;
-					colTitle.style.flex = '1';
-					colTitle.style.margin = '0';
 
 					const removeColBtn = document.createElement('button');
 					removeColBtn.textContent = '×';
@@ -692,16 +704,16 @@
 					colHeader.appendChild(removeColBtn);
 					colEl.appendChild(colHeader);
 
-					// Column content
+					// Column content area
 					const colContent = document.createElement('div');
 					colContent.className = 'column-content';
 					colEl.appendChild(colContent);
 
-					// ---------------------- Column Drag Events ----------------------
-					// Make only the drag handle draggable, not the entire column
-					dragHandle.draggable = true;
+					// Placeholder element reused for task drag feedback (styles come from CSS)
+					const placeholder = document.createElement('div');
+					placeholder.className = 'task placeholder';
 
-					// Column drag start (only on drag handle)
+					// --- Column drag events (handle ↔ whole column) ---
 					dragHandle.addEventListener('dragstart', (e) => {
 						draggedColumnEl = colEl;
 						draggedColumnName = column;
@@ -709,14 +721,12 @@
 						e.dataTransfer.effectAllowed = 'move';
 					});
 
-					// Column drag end (only on drag handle)
 					dragHandle.addEventListener('dragend', () => {
 						colEl.classList.remove('dragging');
 						draggedColumnEl = null;
 						draggedColumnName = null;
 					});
 
-					// Column drag over (on the column element)
 					colEl.addEventListener('dragover', (e) => {
 						e.preventDefault();
 						if (e.dataTransfer) e.dataTransfer.dropEffect = 'move';
@@ -725,12 +735,10 @@
 						}
 					});
 
-					// Column drag leave (on the column element)
 					colEl.addEventListener('dragleave', () => {
 						colEl.classList.remove('drag-over');
 					});
 
-					// Column drop (on the column element)
 					colEl.addEventListener('drop', (e) => {
 						e.preventDefault();
 						colEl.classList.remove('drag-over');
@@ -750,27 +758,13 @@
 						}
 					});
 
-					// Create a global placeholder for drag-and-drop
-					let placeholder = document.createElement('div');
-					placeholder.className = 'task placeholder';
-					placeholder.style.height = '40px';
-					placeholder.style.marginBottom = '8px';
-					placeholder.style.border = '2px dashed var(--primary)';
-					placeholder.style.borderRadius = '6px';
-					placeholder.style.transition = 'all 0.2s ease';
-					placeholder.style.background = 'rgba(37, 99, 235, 0.2)';
-
-					// ---------------------- Task Drag Events ----------------------
-					// Drag events for tasks (only when not dragging columns)
+					// --- Task drag events (override column dragover/drop when dragging tasks) ---
 					colEl.addEventListener('dragover', (e) => {
 						e.preventDefault();
-
-						// Only handle task dragging if we're not dragging a column
-						if (draggedColumnEl) return;
+						if (draggedColumnEl) return; // column drag takes priority
 
 						colEl.classList.add('drag-over');
 
-						// Filter out placeholder and dragged element
 						const taskEls = Array.from(colContent.children).filter(
 							(c) => !c.classList.contains('placeholder') && c !== dragged?.element,
 						);
@@ -784,18 +778,15 @@
 							}
 						}
 
-						// Remove old placeholder
+						// Remove any existing placeholder, then insert at computed position
 						const old = colContent.querySelector('.placeholder');
 						if (old) colContent.removeChild(old);
 
-						// Insert placeholder at calculated position
 						if (toIndex >= taskEls.length) {
 							colContent.appendChild(placeholder);
 						} else {
 							colContent.insertBefore(placeholder, taskEls[toIndex]);
 						}
-
-						placeholder.style.display = 'block';
 					});
 
 					colEl.addEventListener('dragleave', () => colEl.classList.remove('drag-over'));
@@ -803,27 +794,24 @@
 					colEl.addEventListener('drop', (e) => {
 						e.preventDefault();
 						colEl.classList.remove('drag-over');
-						// Only handle task drops if we're not dragging a column
 						if (draggedColumnEl) return;
 
-						// Attempt cross-board detection via DataTransfer payload (before checking local drag state)
+						// Attempt to read cross‑board payload from DataTransfer
 						let xfer = null;
 						try {
-							let raw = e.dataTransfer && e.dataTransfer.getData('application/x-kanban');
-							if (!raw) raw = e.dataTransfer && e.dataTransfer.getData('text/plain');
+							let raw = e.dataTransfer?.getData('application/x-kanban');
+							if (!raw) raw = e.dataTransfer?.getData('text/plain');
 							if (raw) xfer = JSON.parse(raw);
 						} catch {}
 
 						if (!dragged && !xfer) return;
 
-						// Filter out placeholder and, if present locally, the dragged element
 						const taskEls = Array.from(colContent.children).filter((c) => {
 							if (c.classList.contains('placeholder')) return false;
 							if (dragged && c === dragged.element) return false;
 							return true;
 						});
 
-						// Compute toIndex; if placeholder not found, append to end
 						let toIndex = Array.from(colContent.children).indexOf(placeholder);
 						if (toIndex < 0) toIndex = colContent.children.length;
 
@@ -836,7 +824,7 @@
 							xfer.sourceFilePath !== thisBoard &&
 							xfer.taskId
 						) {
-							// Cross-board move (from another panel)
+							// Cross‑board move
 							vscode.postMessage({
 								command: 'moveAcrossBoards',
 								sourceFilePath: xfer.sourceFilePath,
@@ -847,7 +835,7 @@
 								toIndex: toIndex,
 							});
 						} else {
-							// Intra-board move (within same panel)
+							// Intra‑board move
 							vscode.postMessage({
 								command: 'move',
 								fromColumn: draggedColumn,
@@ -857,30 +845,27 @@
 							});
 						}
 
-						// Reset drag state and visuals
 						dragged = null;
 						draggedIndex = null;
 						draggedColumn = null;
 						clearGlobalDragUI();
 					});
 
-					// ---------------------- Render Tasks ----------------------
+					// --- Render tasks inside the column ---
 					taskList.forEach((task, index) => {
 						const taskEl = document.createElement('div');
-						taskEl.className = 'task ' + (task.done ? 'done' : '');
+						taskEl.className = 'task' + (task.done ? ' done' : '');
 						taskEl.draggable = true;
 
-						// Task title element
 						const textEl = document.createElement('span');
 						textEl.className = 'task-text';
 						applyDirection(textEl, task.text);
 
-						// Show task info modal
+						// Open info modal on click
 						textEl.onclick = () => showTaskInfoModal(task, column, index);
 
+						// Tooltip when text is truncated
 						const globalTooltip = document.getElementById('global-tooltip');
-
-						// Tooltip logic: show only when truncated
 						textEl.addEventListener('mouseenter', () => {
 							if (textEl.scrollWidth > textEl.clientWidth) {
 								applyDirection(globalTooltip, task.text);
@@ -899,21 +884,14 @@
 						badge.style.padding = '2px 6px';
 						badge.style.borderRadius = '4px';
 						badge.style.color = 'white';
-						const colors = {
-							Highest: '#B91C1C',
-							High: '#EA580C',
-							Medium: '#F59E0B',
-							Low: '#2563EB',
-							Lowest: '#047857',
-						};
-						badge.style.backgroundColor = colors[task.priority] || '#F59E0B';
+						badge.style.backgroundColor = PRIORITY_COLORS[task.priority] || '#F59E0B';
 
-						// Double-click to edit priority via dropdown
+						// Double‑click to edit priority inline
 						badge.addEventListener('dblclick', (e) => {
 							e.preventDefault();
 							e.stopPropagation();
-							// Temporarily disable dragging while editing
 							taskEl.draggable = false;
+
 							const select = document.createElement('select');
 							select.style.fontSize = '0.75rem';
 							select.style.padding = '2px 6px';
@@ -921,6 +899,7 @@
 							select.style.marginLeft = '8px';
 							select.style.background = 'var(--task-bg)';
 							select.style.color = 'var(--text)';
+
 							['Highest', 'High', 'Medium', 'Low', 'Lowest'].forEach((p) => {
 								const opt = document.createElement('option');
 								opt.value = p;
@@ -932,10 +911,9 @@
 							const commit = () => {
 								const newPriority = select.value;
 								badge.textContent = newPriority;
-								badge.style.backgroundColor = colors[newPriority] || '#F59E0B';
+								badge.style.backgroundColor = PRIORITY_COLORS[newPriority] || '#F59E0B';
 								badge.style.display = '';
 								select.replaceWith(badge);
-								// Re-enable dragging
 								taskEl.draggable = true;
 								if (newPriority !== task.priority) {
 									vscode.postMessage({
@@ -949,7 +927,6 @@
 
 							select.addEventListener('change', commit);
 							select.addEventListener('blur', commit);
-
 							badge.replaceWith(select);
 							select.focus();
 						});
@@ -967,13 +944,12 @@
 						taskEl.appendChild(badge);
 						taskEl.appendChild(removeBtn);
 
-						// Drag events for task
+						// Task drag events
 						taskEl.addEventListener('dragstart', (e) => {
 							dragged = { task, element: taskEl };
 							draggedIndex = index;
 							draggedColumn = column;
 							taskEl.style.opacity = '0.4';
-							// Populate DataTransfer so other panels can detect cross-board drags
 							try {
 								const payload = {
 									sourceFilePath: typeof boardFilePath !== 'undefined' ? boardFilePath : undefined,
@@ -981,7 +957,6 @@
 									taskId: task.id,
 								};
 								e.dataTransfer?.setData('application/x-kanban', JSON.stringify(payload));
-								// Also set text/plain for environments that strip custom MIME types
 								e.dataTransfer?.setData('text/plain', JSON.stringify(payload));
 								if (e.dataTransfer) e.dataTransfer.effectAllowed = 'copyMove';
 							} catch {}
@@ -989,7 +964,6 @@
 
 						taskEl.addEventListener('dragend', () => {
 							taskEl.style.opacity = '1';
-							// Ensure cleanup even if drop occurred in another panel
 							dragged = null;
 							draggedIndex = null;
 							draggedColumn = null;
@@ -1003,33 +977,26 @@
 				});
 			}
 
-			/** ---------------------- Task Info Modal ---------------------- */
 			/**
-			 * Show Task Info Modal
-			 * @param {Object} task Task object
-			 * @param {string} column Column name of the task
-			 * @param {number} taskIndex Index of the task in the column
+			 * Show detailed task information in a modal.
+			 * @param {Object} task - Task data
+			 * @param {string} column - Column name
+			 * @param {number} taskIndex - Index within the column
 			 */
 			function showTaskInfoModal(task, column, taskIndex) {
 				const taskInfoModal = document.getElementById('task-info-modal');
 				applyDirection(document.getElementById('info-title'), task.text);
+
 				const infoPriorityEl = document.getElementById('info-priority');
 				infoPriorityEl.textContent = task.priority;
-				// Style the modal priority like the board badge
-				const modalPriorityColors = {
-					Highest: '#B91C1C',
-					High: '#EA580C',
-					Medium: '#F59E0B',
-					Low: '#2563EB',
-					Lowest: '#047857',
-				};
 				infoPriorityEl.style.display = 'inline-block';
 				infoPriorityEl.style.marginLeft = '8px';
 				infoPriorityEl.style.fontSize = '0.75rem';
 				infoPriorityEl.style.padding = '2px 6px';
 				infoPriorityEl.style.borderRadius = '4px';
 				infoPriorityEl.style.color = 'white';
-				infoPriorityEl.style.backgroundColor = modalPriorityColors[task.priority] || '#F59E0B';
+				infoPriorityEl.style.backgroundColor = PRIORITY_COLORS[task.priority] || '#F59E0B';
+
 				document.getElementById('info-status').textContent = column;
 
 				const descEl = document.getElementById('info-description');
@@ -1037,7 +1004,6 @@
 					const lines = task.notes.split('\n');
 					descEl.innerHTML = lines
 						.map((line) => {
-							// Wrap each line in <p> and apply direction
 							const p = document.createElement('p');
 							p.style.margin = '7px 0';
 							applyDirection(p, line);
@@ -1049,7 +1015,6 @@
 				}
 
 				const commentsEl = document.getElementById('info-comments');
-				// Clear existing content
 				commentsEl.innerHTML = '';
 
 				if (task.comments && task.comments.length > 0) {
@@ -1102,11 +1067,12 @@
 					commentsEl.textContent = '(No comments)';
 				}
 
-				// Enable dblclick priority editing inside modal
+				// Double‑click priority inside the info modal to edit
 				infoPriorityEl.onclick = (e) => e.stopPropagation();
 				infoPriorityEl.ondblclick = (e) => {
 					e.preventDefault();
 					e.stopPropagation();
+
 					const select = document.createElement('select');
 					select.style.fontSize = '0.9rem';
 					select.style.padding = '2px 6px';
@@ -1129,7 +1095,7 @@
 					const commit = () => {
 						const newPriority = select.value;
 						infoPriorityEl.textContent = newPriority;
-						infoPriorityEl.style.backgroundColor = modalPriorityColors[newPriority] || '#F59E0B';
+						infoPriorityEl.style.backgroundColor = PRIORITY_COLORS[newPriority] || '#F59E0B';
 						restore();
 						if (window.currentEditingTask && newPriority !== task.priority) {
 							vscode.postMessage({
@@ -1147,17 +1113,14 @@
 					select.focus();
 				};
 
-				// Store current task info for editing
+				// Store reference for comment / priority edits
 				window.currentEditingTask = { task, column, taskIndex };
 
-				// Close modal on clicking close button
-				const closeInfoBtn = document.getElementById('close-info');
-				closeInfoBtn.onclick = () => {
+				document.getElementById('close-info').onclick = () => {
 					taskInfoModal.style.display = 'none';
 					window.currentEditingTask = null;
 				};
 
-				// Click outside modal content closes it
 				taskInfoModal.onclick = (e) => {
 					if (e.target === taskInfoModal) {
 						taskInfoModal.style.display = 'none';
@@ -1168,7 +1131,7 @@
 				taskInfoModal.style.display = 'flex';
 			}
 
-			/** ---------------------- Task Modal Logic ---------------------- */
+			// ---------- Task creation modal ----------
 			const taskModal = document.getElementById('task-modal');
 			const openTaskModalBtn = document.getElementById('open-task-modal');
 			const cancelTaskBtn = document.getElementById('cancel-task');
@@ -1199,16 +1162,14 @@
 				resetTaskModal();
 			});
 
-			/**
-			 * Reset task modal inputs to default state
-			 */
+			/** Reset task creation form to defaults */
 			function resetTaskModal() {
 				addInput.value = '';
 				prioritySelect.value = 'Medium';
 				notesInput.value = '';
 			}
 
-			// Ctrl+Enter on description textarea adds task (new)
+			// Ctrl+Enter in the notes textarea triggers "Add Task"
 			notesInput.addEventListener('keydown', (e) => {
 				if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
 					e.preventDefault();
@@ -1216,7 +1177,7 @@
 				}
 			});
 
-			/** ---------------------- Comment Adding Logic ---------------------- */
+			// ---------- Comments inside task info modal ----------
 			const newCommentInput = document.getElementById('new-comment-input');
 			const addCommentBtn = document.getElementById('add-comment-btn');
 
@@ -1232,12 +1193,11 @@
 				}
 			});
 
-			// Allow adding comments with Enter key
 			newCommentInput.addEventListener('keypress', (e) => {
 				if (e.key === 'Enter') addCommentBtn.click();
 			});
 
-			/** ---------------------- Add Column Modal Logic ---------------------- */
+			// ---------- Add column modal ----------
 			const columnModal = document.getElementById('column-modal');
 			const openColumnModalBtn = document.getElementById('open-column-modal');
 			const cancelColumnBtn = document.getElementById('cancel-column');
@@ -1262,7 +1222,6 @@
 				newColumnNameInput.value = '';
 			});
 
-			// Enter key to confirm
 			newColumnNameInput.addEventListener('keypress', (e) => {
 				if (e.key === 'Enter') addColumnConfirmBtn.click();
 			});
@@ -1273,13 +1232,11 @@
 
 			enableAutoPair(newColumnNameInput);
 
-			/** ---------------------- Global Event Listeners ---------------------- */
-			// (We'll keep the old Enter listener for task input, and now column is separate)
+			// ---------- Global keyboard shortcuts ----------
 			addInput.addEventListener('keypress', (e) => {
 				if (e.key === 'Enter') addBtn.click();
 			});
 
-			// ESC key closes modals (including help, column, task)
 			document.addEventListener('keydown', (e) => {
 				if (e.key === 'Escape') {
 					if (columnModal.style.display === 'flex') {
@@ -1302,16 +1259,14 @@
 				}
 			});
 
-			/** Keyboard chords: Ctrl+G then Ctrl+T or Ctrl+N */
+			// Keyboard chord: Ctrl+G then Ctrl+T (open task modal) or Ctrl+N (open column modal)
 			(function registerChords() {
 				let awaitingSecond = false;
 				let timeoutId = null;
 
 				document.addEventListener('keydown', (e) => {
 					const tag = (document.activeElement && document.activeElement.tagName) || '';
-					if (['INPUT', 'TEXTAREA', 'SELECT'].includes(tag)) {
-						if (!e.ctrlKey && !e.metaKey) return;
-					}
+					if (['INPUT', 'TEXTAREA', 'SELECT'].includes(tag) && !e.ctrlKey && !e.metaKey) return;
 
 					if (!awaitingSecond) {
 						if ((e.ctrlKey || e.metaKey) && (e.key === 'g' || e.key === 'G')) {
@@ -1342,92 +1297,77 @@
 				});
 			})();
 
-			/** ---------------------- Listen for updates from extension ---------------------- */
+			// ---------- Listen for state updates from the extension ----------
 			window.addEventListener('message', (event) => {
 				const message = event.data;
 				if (message.command === 'update') {
 					renderBoard(message.tasks);
-
-					// Keep find highlights in sync after re-render
 					refreshFindIfOpen();
 
-					// If task info modal is open, check if the task is still the same
+					// Refresh the info modal if it’s still showing the same task
 					if (window.currentEditingTask) {
 						const updatedTask =
 							message.tasks[window.currentEditingTask.column] &&
 							message.tasks[window.currentEditingTask.column][window.currentEditingTask.taskIndex];
 
 						if (updatedTask && updatedTask.text === window.currentEditingTask.task.text) {
-							// Same task at the same position, refresh the modal
 							showTaskInfoModal(
 								updatedTask,
 								window.currentEditingTask.column,
 								window.currentEditingTask.taskIndex,
 							);
 						} else {
-							// Task is different or no longer exists at that position, close modal
 							const taskInfoModal = document.getElementById('task-info-modal');
-							if (taskInfoModal) {
-								taskInfoModal.style.display = 'none';
-							}
+							if (taskInfoModal) taskInfoModal.style.display = 'none';
 							window.currentEditingTask = null;
 						}
 					}
 				}
 			});
 
-			/** Show workspace/project name */
+			// Set board title if the workspace name is provided
 			if (typeof workspaceName !== 'undefined') {
 				document.getElementById('board-title').textContent = workspaceName + ' Kanban Board';
 			}
 
-			/** ---------------------- Theme Management ---------------------- */
+			// ---------- Theme management ----------
 			const themeToggle = document.getElementById('theme-toggle');
 			const body = document.body;
 
-			// Initialize theme from localStorage or default to light
+			/** Initialize theme from localStorage or default to light */
 			function initializeTheme() {
 				const savedTheme = localStorage.getItem('kanban-theme') || 'light';
 				setTheme(savedTheme);
 			}
 
-			// Set theme and update UI
+			/** Apply the given theme and update the toggle button text */
 			function setTheme(theme) {
 				body.setAttribute('data-theme', theme);
 				localStorage.setItem('kanban-theme', theme);
-				themeToggle.innerHTML = theme === 'dark' ? '☀️ Light' : '🌙 Dark';
+				themeToggle.textContent = theme === 'dark' ? '☀️ Light' : '🌙 Dark';
 			}
 
-					// Toggle between light and dark themes
-	function toggleTheme() {
+			/** Switch between light and dark */
+			function toggleTheme() {
 				const currentTheme = body.getAttribute('data-theme');
 				setTheme(currentTheme === 'dark' ? 'light' : 'dark');
 			}
 
-			// Event listener for theme toggle
 			themeToggle.addEventListener('click', toggleTheme);
-
-			// Initialize theme on page load
 			initializeTheme();
 
-			/** ---------------------- Help Modal Logic ---------------------- */
+			// ---------- Help modal ----------
 			const helpBtn = document.getElementById('help-btn');
 			const helpModal = document.getElementById('help-modal');
 			const closeHelpBtn = document.getElementById('close-help');
 
-			helpBtn.addEventListener('click', () => {
-				helpModal.style.display = 'flex';
-			});
-			closeHelpBtn.addEventListener('click', () => {
-				helpModal.style.display = 'none';
-			});
-
-			// Click outside modal content closes it
+			helpBtn.addEventListener('click', () => (helpModal.style.display = 'flex'));
+			closeHelpBtn.addEventListener('click', () => (helpModal.style.display = 'none'));
 			helpModal.addEventListener('click', (e) => {
 				if (e.target === helpModal) helpModal.style.display = 'none';
 			});
 
-			/** ---------------------- Find in Tasks ---------------------- */
+			// ---------- Find / search in task titles ----------
 			const findPanel = document.getElementById('find-panel');
 			const findInput = document.getElementById('find-input');
 			const findCount = document.getElementById('find-count');
@@ -1439,12 +1379,14 @@
 			let findMatches = [];
 			let findIndex = -1;
 
+			/** Remove all find highlights */
 			function clearFindHighlights() {
 				document.querySelectorAll('.task.match, .task.current-match').forEach((el) => {
 					el.classList.remove('match', 'current-match');
 				});
 			}
 
+			/** Re‑evaluate matches based on current query and update UI */
 			function updateFindMatches() {
 				clearFindHighlights();
 				findMatches = [];
@@ -1456,8 +1398,7 @@
 
 				document.querySelectorAll('.task').forEach((taskEl) => {
 					const textEl = taskEl.querySelector('.task-text');
-					if (!textEl) return;
-					if ((textEl.textContent || '').toLowerCase().includes(q)) {
+					if (textEl && (textEl.textContent || '').toLowerCase().includes(q)) {
 						taskEl.classList.add('match');
 						findMatches.push(taskEl);
 					}
@@ -1470,12 +1411,14 @@
 				updateFindCount();
 			}
 
+			/** Update the find count label (e.g., "2/5") */
 			function updateFindCount() {
 				findCount.textContent = findMatches.length
 					? `${findIndex + 1}/${findMatches.length}`
 					: '0/0';
 			}
 
+			/** Scroll the current match into view and highlight it */
 			function applyCurrentMatch() {
 				document
 					.querySelectorAll('.task.current-match')
@@ -1483,7 +1426,6 @@
 				if (findMatches.length && findIndex >= 0) {
 					const el = findMatches[findIndex];
 					el.classList.add('current-match');
-					// Ensure it is visible
 					el.scrollIntoView({ block: 'center', behavior: 'smooth' });
 				}
 			}
@@ -1516,7 +1458,6 @@
 				updateFindCount();
 			}
 
-			// Events
 			findInput.addEventListener('input', () => {
 				findQuery = findInput.value;
 				updateFindMatches();
@@ -1525,8 +1466,7 @@
 			findInput.addEventListener('keydown', (e) => {
 				if (e.key === 'Enter') {
 					e.preventDefault();
-					if (e.shiftKey) findPrev();
-					else findNext();
+					e.shiftKey ? findPrev() : findNext();
 				} else if (e.key === 'Escape') {
 					e.preventDefault();
 					closeFindPanel();
@@ -1546,31 +1486,33 @@
 				closeFindPanel();
 			});
 
-			// Global keybinding: Ctrl+F opens find panel
+			// Ctrl+F opens the find panel
 			document.addEventListener('keydown', (e) => {
-				// Ignore when modifiers not held and typing in inputs
-				const tag = (document.activeElement && document.activeElement.tagName) || '';
 				if ((e.ctrlKey || e.metaKey) && (e.key === 'f' || e.key === 'F')) {
 					e.preventDefault();
 					openFindPanel();
-					// Keep current query and recompute matches with current DOM
 					findQuery = findInput.value || findQuery;
 					updateFindMatches();
 				}
-				// Esc closes find when focused outside the input
 				if (e.key === 'Escape' && findPanel.style.display === 'flex') {
 					closeFindPanel();
 				}
 			});
 
-			// If board re-renders while find is open, recompute matches
+			/**
+			 * If the find panel is open, re‑compute matches (useful after board re‑render)
+			 */
 			function refreshFindIfOpen() {
 				if (findPanel.style.display === 'flex' && findQuery.trim()) {
 					updateFindMatches();
 				}
 			}
 
-			/** ---------------------- Auto-pairing for input fields ---------------------- */
+			// ---------- Auto‑pairing for brackets/quotes in input fields ----------
+			/**
+			 * Enable automatic insertion of closing brackets/quotes when an opening one is typed.
+			 * @param {HTMLInputElement|HTMLTextAreaElement} inputEl
+			 */
 			function enableAutoPair(inputEl) {
 				const pairs = { '[': ']', '{': '}', '(': ')', '"': '"', "'": "'", '`': '`' };
 				inputEl.addEventListener('keydown', (e) => {
@@ -1578,16 +1520,13 @@
 					const end = inputEl.selectionEnd;
 					const nextChar = inputEl.value[start];
 
-					// Opening characters
 					if (pairs[e.key]) {
-						// Special handling for quotes and backtick
+						// Special handling for quotes/backtick when the next character is the same
 						if ((e.key === '"' || e.key === "'" || e.key === '`') && nextChar === e.key) {
 							e.preventDefault();
 							inputEl.selectionStart = inputEl.selectionEnd = start + 1;
 							return;
 						}
-
-						// Normal pair insertion
 						if (!e.ctrlKey && !e.metaKey) {
 							e.preventDefault();
 							const closeChar = pairs[e.key];
@@ -1604,7 +1543,7 @@
 				});
 			}
 
-			// Apply auto-pairing to task inputs and new column name input
+			// Apply auto‑pairing to relevant inputs
 			enableAutoPair(addInput);
 			enableAutoPair(notesInput);
 			enableAutoPair(newCommentInput);
