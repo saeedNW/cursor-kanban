@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 	<head>
 		<meta charset="UTF-8" />
@@ -77,7 +77,9 @@
 				box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 				display: flex;
 				flex-direction: column;
-				transition: transform 0.2s ease, box-shadow 0.2s ease;
+				transition:
+					transform 0.2s ease,
+					box-shadow 0.2s ease;
 			}
 
 			.column:hover {
@@ -127,7 +129,9 @@
 				display: flex;
 				justify-content: space-between;
 				align-items: center;
-				transition: transform 0.2s ease, opacity 0.2s ease;
+				transition:
+					transform 0.2s ease,
+					opacity 0.2s ease;
 				box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
 				position: relative;
 			}
@@ -172,7 +176,9 @@
 				border: 1px solid var(--border);
 				opacity: 0;
 				visibility: hidden;
-				transition: opacity 0.16s ease, visibility 0.16s ease;
+				transition:
+					opacity 0.16s ease,
+					visibility 0.16s ease;
 				pointer-events: none;
 				max-width: 420px;
 				word-wrap: break-word;
@@ -439,6 +445,22 @@
 			.task.current-match .task-text {
 				background: rgba(250, 204, 21, 0.65);
 			}
+
+			/* ---------------------- Help Modal specific ---------------------- */
+			.help-list {
+				margin: 0;
+				padding-left: 1.2rem;
+				line-height: 1.8;
+			}
+			.help-list kbd {
+				display: inline-block;
+				padding: 2px 6px;
+				font-family: monospace;
+				background: var(--column-bg);
+				border: 1px solid var(--border);
+				border-radius: 4px;
+				font-size: 0.85rem;
+			}
 		</style>
 	</head>
 	<body>
@@ -455,6 +477,9 @@
 			<button id="theme-toggle" class="btn-secondary" title="Toggle dark/light theme">
 				🌙 Dark
 			</button>
+
+			<!-- NEW: Help button -->
+			<button id="help-btn" class="btn-secondary" title="Show keyboard shortcuts">❓ Help</button>
 		</div>
 
 		<!-- Find panel -->
@@ -518,6 +543,29 @@
 				</div>
 				<div class="modal-actions">
 					<button id="close-info" class="btn-secondary">Close</button>
+				</div>
+			</div>
+		</div>
+
+		<!-- NEW: Help Modal -->
+		<div id="help-modal" class="modal-backdrop">
+			<div class="modal" style="max-width: 500px">
+				<div class="modal-header">Keyboard Shortcuts &amp; Tips</div>
+				<ul class="help-list">
+					<li>
+						<kbd>Ctrl</kbd>+<kbd>G</kbd> then <kbd>Ctrl</kbd>+<kbd>T</kbd> → Open New Task modal
+					</li>
+					<li><kbd>Ctrl</kbd>+<kbd>F</kbd> → Search tasks by title</li>
+					<li><kbd>Enter</kbd> in search → Next match</li>
+					<li><kbd>Shift</kbd>+<kbd>Enter</kbd> in search → Previous match</li>
+					<li><kbd>Esc</kbd> → Close any open modal or the search panel</li>
+					<li><kbd>Enter</kbd> on the "Add Task" or "Add Column" input → trigger add</li>
+					<li>Double‑click a task priority badge → edit priority</li>
+					<li>Drag a column's handle (<code>⋮⋮</code>) → reorder columns</li>
+					<li>Drag tasks within or across boards to move them</li>
+				</ul>
+				<div class="modal-actions">
+					<button id="close-help" class="btn-secondary">Close</button>
 				</div>
 			</div>
 		</div>
@@ -1221,15 +1269,20 @@
 				}),
 			);
 
-			// ESC key closes modals
+			// ESC key closes modals (including help modal)
 			document.addEventListener('keydown', (e) => {
 				if (e.key === 'Escape') {
 					if (taskModal.style.display === 'flex')
-						resetTaskModal(), (taskModal.style.display = 'none');
+						(resetTaskModal(), (taskModal.style.display = 'none'));
 					const taskInfoModal = document.getElementById('task-info-modal');
 					if (taskInfoModal.style.display === 'flex') {
 						taskInfoModal.style.display = 'none';
 						window.currentEditingTask = null;
+					}
+					// Close help modal if open
+					const helpModal = document.getElementById('help-modal');
+					if (helpModal.style.display === 'flex') {
+						helpModal.style.display = 'none';
 					}
 				}
 			});
@@ -1339,6 +1392,26 @@
 
 			// Initialize theme on page load
 			initializeTheme();
+
+			/** ---------------------- Help Modal Logic ---------------------- */
+			const helpBtn = document.getElementById('help-btn');
+			const helpModal = document.getElementById('help-modal');
+			const closeHelpBtn = document.getElementById('close-help');
+
+			helpBtn.addEventListener('click', () => {
+				helpModal.style.display = 'flex';
+			});
+
+			closeHelpBtn.addEventListener('click', () => {
+				helpModal.style.display = 'none';
+			});
+
+			// Click outside modal content closes it
+			helpModal.addEventListener('click', (e) => {
+				if (e.target === helpModal) {
+					helpModal.style.display = 'none';
+				}
+			});
 
 			/** ---------------------- Find in Tasks ---------------------- */
 			const findPanel = document.getElementById('find-panel');
