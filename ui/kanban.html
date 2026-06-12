@@ -39,29 +39,50 @@
 			}
 
 			/* ---------------------- Layout ---------------------- */
+			html,
+			body {
+				margin: 0;
+				padding: 0;
+				height: 100%;
+				overflow: hidden; /* prevent body scroll */
+			}
+
 			body {
 				font-family: 'Segoe UI', system-ui, sans-serif;
-				margin: 0;
-				padding: 16px;
+				display: flex;
+				flex-direction: column;
 				color: var(--text);
 				background-color: var(--bg);
 			}
 
 			#board-title {
+				flex-shrink: 0;
 				color: var(--text);
 				font-size: 1.5rem;
 				font-weight: 600;
-				margin-bottom: 1.5rem;
-				padding-bottom: 0.5rem;
+				margin: 0;
+				padding: 16px 16px 8px 16px;
 				border-bottom: 1px solid var(--border);
 			}
 
+			.controls {
+				flex-shrink: 0;
+				display: flex;
+				gap: 16px;
+				padding: 8px 16px 8px 16px;
+				margin-bottom: 0;
+				flex-wrap: wrap;
+				background-color: var(--bg); /* ensure it stays above board */
+			}
+
 			.board {
+				flex: 1;
 				display: flex;
 				gap: 24px;
-				padding: 8px;
+				padding: 8px 16px;
 				overflow-x: auto;
-				min-height: calc(100vh - 180px);
+				overflow-y: auto; /* vertical scroll only for the board */
+				min-height: 0; /* allow flex shrinking */
 				align-items: flex-start;
 			}
 
@@ -72,7 +93,6 @@
 				width: 280px;
 				min-width: 280px;
 				flex: 0 0 280px;
-				min-height: 60px;
 				background: var(--column-bg);
 				box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 				display: flex;
@@ -216,13 +236,6 @@
 				box-shadow: inset 0 0 0 2px var(--primary-light);
 			}
 
-			.controls {
-				display: flex;
-				gap: 16px;
-				margin-bottom: 20px;
-				flex-wrap: wrap;
-			}
-
 			button {
 				padding: 8px 16px;
 				border-radius: 6px;
@@ -259,43 +272,6 @@
 
 			.remove-btn:hover {
 				background-color: rgba(239, 68, 68, 0.1);
-			}
-
-			.add-column {
-				display: flex;
-				gap: 8px;
-				align-items: center;
-			}
-
-			.add-column input {
-				padding: 8px 12px;
-				border: 1px solid var(--border);
-				border-radius: 6px;
-				font-size: 0.9rem;
-				flex: 1;
-				background: var(--task-bg);
-				color: var(--text);
-			}
-
-			.add-column input:focus {
-				outline: none;
-				border-color: var(--primary-light);
-				box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
-			}
-
-			.add-column button {
-				padding: 8px 16px;
-				border-radius: 6px;
-				border: none;
-				background-color: var(--success);
-				color: white;
-				font-weight: 500;
-				cursor: pointer;
-				transition: all 0.2s ease;
-			}
-
-			.add-column button:hover {
-				background-color: #059669;
 			}
 
 			/* ---------------------- Modal ---------------------- */
@@ -394,7 +370,6 @@
 			}
 
 			/* ---------------------- Find Panel ---------------------- */
-
 			.find-panel {
 				position: fixed;
 				top: 12px;
@@ -452,6 +427,7 @@
 				padding-left: 1.2rem;
 				line-height: 1.8;
 			}
+
 			.help-list kbd {
 				display: inline-block;
 				padding: 2px 6px;
@@ -476,11 +452,9 @@
 
 			<!-- Changed: Now a button that opens the column modal -->
 			<button id="open-column-modal" class="btn-secondary">+ Add Column</button>
-
 			<button id="theme-toggle" class="btn-secondary" title="Toggle dark/light theme">
 				🌙 Dark
 			</button>
-
 			<button id="help-btn" class="btn-secondary" title="Show keyboard shortcuts">❓ Help</button>
 		</div>
 
@@ -579,7 +553,7 @@
 			</div>
 		</div>
 
-		<!-- NEW: Add Column Modal -->
+		<!-- Add Column Modal -->
 		<div id="column-modal" class="modal-backdrop">
 			<div class="modal" style="max-width: 400px">
 				<div class="modal-header">Add New Column</div>
@@ -653,7 +627,6 @@
 
 				// Regex for Persian/Arabic characters
 				const persianRegex = /^[\u0600-\u06FF]/;
-
 				if (persianRegex.test(text[0])) {
 					el.style.direction = 'rtl';
 					el.style.textAlign = 'left';
@@ -763,7 +736,6 @@
 						colEl.classList.remove('drag-over');
 
 						if (draggedColumnEl && draggedColumnEl !== colEl) {
-							const board = document.getElementById('board');
 							const columns = Array.from(board.children);
 							const fromIndex = columns.indexOf(draggedColumnEl);
 							const toIndex = columns.indexOf(colEl);
@@ -794,13 +766,9 @@
 						e.preventDefault();
 
 						// Only handle task dragging if we're not dragging a column
-						if (draggedColumnEl) {
-							return;
-						}
+						if (draggedColumnEl) return;
 
 						colEl.classList.add('drag-over');
-
-						const colContent = colEl.querySelector('.column-content');
 
 						// Filter out placeholder and dragged element
 						const taskEls = Array.from(colContent.children).filter(
@@ -808,7 +776,6 @@
 						);
 
 						let toIndex = taskEls.length;
-
 						for (let i = 0; i < taskEls.length; i++) {
 							const rect = taskEls[i].getBoundingClientRect();
 							if (e.clientY < rect.top + rect.height / 2) {
@@ -836,25 +803,18 @@
 					colEl.addEventListener('drop', (e) => {
 						e.preventDefault();
 						colEl.classList.remove('drag-over');
-
 						// Only handle task drops if we're not dragging a column
-						if (draggedColumnEl) {
-							return;
-						}
+						if (draggedColumnEl) return;
 
 						// Attempt cross-board detection via DataTransfer payload (before checking local drag state)
 						let xfer = null;
 						try {
 							let raw = e.dataTransfer && e.dataTransfer.getData('application/x-kanban');
-							if (!raw) {
-								raw = e.dataTransfer && e.dataTransfer.getData('text/plain');
-							}
+							if (!raw) raw = e.dataTransfer && e.dataTransfer.getData('text/plain');
 							if (raw) xfer = JSON.parse(raw);
 						} catch {}
 
 						if (!dragged && !xfer) return;
-
-						const colContent = colEl.querySelector('.column-content');
 
 						// Filter out placeholder and, if present locally, the dragged element
 						const taskEls = Array.from(colContent.children).filter((c) => {
@@ -865,9 +825,7 @@
 
 						// Compute toIndex; if placeholder not found, append to end
 						let toIndex = Array.from(colContent.children).indexOf(placeholder);
-						if (toIndex < 0) {
-							toIndex = colContent.children.length;
-						}
+						if (toIndex < 0) toIndex = colContent.children.length;
 
 						const thisBoard = typeof boardFilePath !== 'undefined' ? boardFilePath : undefined;
 
@@ -929,7 +887,6 @@
 								globalTooltip.classList.add('show');
 							}
 						});
-
 						textEl.addEventListener('mouseleave', () => {
 							globalTooltip.classList.remove('show');
 						});
@@ -1029,6 +986,7 @@
 								if (e.dataTransfer) e.dataTransfer.effectAllowed = 'copyMove';
 							} catch {}
 						});
+
 						taskEl.addEventListener('dragend', () => {
 							taskEl.style.opacity = '1';
 							// Ensure cleanup even if drop occurred in another panel
@@ -1185,7 +1143,6 @@
 
 					select.addEventListener('change', commit);
 					select.addEventListener('blur', commit);
-
 					infoPriorityEl.replaceWith(select);
 					select.focus();
 				};
@@ -1225,10 +1182,12 @@
 				taskModal.style.display = 'flex';
 				addInput.focus();
 			});
+
 			cancelTaskBtn.addEventListener('click', () => {
 				taskModal.style.display = 'none';
 				resetTaskModal();
 			});
+
 			addBtn.addEventListener('click', () => {
 				const text = addInput.value.trim();
 				const priority = prioritySelect.value;
@@ -1275,9 +1234,7 @@
 
 			// Allow adding comments with Enter key
 			newCommentInput.addEventListener('keypress', (e) => {
-				if (e.key === 'Enter') {
-					addCommentBtn.click();
-				}
+				if (e.key === 'Enter') addCommentBtn.click();
 			});
 
 			/** ---------------------- Add Column Modal Logic ---------------------- */
@@ -1307,19 +1264,13 @@
 
 			// Enter key to confirm
 			newColumnNameInput.addEventListener('keypress', (e) => {
-				if (e.key === 'Enter') {
-					addColumnConfirmBtn.click();
-				}
+				if (e.key === 'Enter') addColumnConfirmBtn.click();
 			});
 
-			// Click outside modal closes it
 			columnModal.addEventListener('click', (e) => {
-				if (e.target === columnModal) {
-					columnModal.style.display = 'none';
-				}
+				if (e.target === columnModal) columnModal.style.display = 'none';
 			});
 
-			// Auto-pairing for column name input
 			enableAutoPair(newColumnNameInput);
 
 			/** ---------------------- Global Event Listeners ---------------------- */
@@ -1331,7 +1282,6 @@
 			// ESC key closes modals (including help, column, task)
 			document.addEventListener('keydown', (e) => {
 				if (e.key === 'Escape') {
-					const columnModal = document.getElementById('column-modal');
 					if (columnModal.style.display === 'flex') {
 						columnModal.style.display = 'none';
 						e.stopImmediatePropagation();
@@ -1445,20 +1395,13 @@
 			function setTheme(theme) {
 				body.setAttribute('data-theme', theme);
 				localStorage.setItem('kanban-theme', theme);
-
-				// Update toggle button text and icon
-				if (theme === 'dark') {
-					themeToggle.innerHTML = '☀️ Light';
-				} else {
-					themeToggle.innerHTML = '🌙 Dark';
-				}
+				themeToggle.innerHTML = theme === 'dark' ? '☀️ Light' : '🌙 Dark';
 			}
 
-			// Toggle between light and dark themes
-			function toggleTheme() {
+					// Toggle between light and dark themes
+	function toggleTheme() {
 				const currentTheme = body.getAttribute('data-theme');
-				const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
-				setTheme(newTheme);
+				setTheme(currentTheme === 'dark' ? 'light' : 'dark');
 			}
 
 			// Event listener for theme toggle
@@ -1475,16 +1418,13 @@
 			helpBtn.addEventListener('click', () => {
 				helpModal.style.display = 'flex';
 			});
-
 			closeHelpBtn.addEventListener('click', () => {
 				helpModal.style.display = 'none';
 			});
 
 			// Click outside modal content closes it
 			helpModal.addEventListener('click', (e) => {
-				if (e.target === helpModal) {
-					helpModal.style.display = 'none';
-				}
+				if (e.target === helpModal) helpModal.style.display = 'none';
 			});
 
 			/** ---------------------- Find in Tasks ---------------------- */
@@ -1496,7 +1436,7 @@
 			const findCloseBtn = document.getElementById('find-close');
 
 			let findQuery = '';
-			let findMatches = []; // Array<HTMLElement> of .task
+			let findMatches = [];
 			let findIndex = -1;
 
 			function clearFindHighlights() {
@@ -1514,12 +1454,10 @@
 				const q = findQuery.trim().toLowerCase();
 				if (!q) return;
 
-				const allTasks = Array.from(document.querySelectorAll('.task'));
-				allTasks.forEach((taskEl) => {
+				document.querySelectorAll('.task').forEach((taskEl) => {
 					const textEl = taskEl.querySelector('.task-text');
 					if (!textEl) return;
-					const text = (textEl.textContent || '').toLowerCase();
-					if (text.includes(q)) {
+					if ((textEl.textContent || '').toLowerCase().includes(q)) {
 						taskEl.classList.add('match');
 						findMatches.push(taskEl);
 					}
@@ -1533,11 +1471,9 @@
 			}
 
 			function updateFindCount() {
-				if (!findMatches.length) {
-					findCount.textContent = '0/0';
-				} else {
-					findCount.textContent = `${findIndex + 1}/${findMatches.length}`;
-				}
+				findCount.textContent = findMatches.length
+					? `${findIndex + 1}/${findMatches.length}`
+					: '0/0';
 			}
 
 			function applyCurrentMatch() {
@@ -1554,14 +1490,12 @@
 
 			function openFindPanel() {
 				findPanel.style.display = 'flex';
-				findPanel.style.visibility = 'visible';
 				findInput.focus();
 				findInput.select();
 			}
 
 			function closeFindPanel() {
 				findPanel.style.display = 'none';
-				findPanel.style.visibility = 'hidden';
 				findQuery = '';
 				findInput.value = '';
 				findCount.textContent = '';
@@ -1587,6 +1521,7 @@
 				findQuery = findInput.value;
 				updateFindMatches();
 			});
+
 			findInput.addEventListener('keydown', (e) => {
 				if (e.key === 'Enter') {
 					e.preventDefault();
@@ -1597,6 +1532,7 @@
 					closeFindPanel();
 				}
 			});
+
 			findPrevBtn.addEventListener('click', (e) => {
 				e.preventDefault();
 				findPrev();
@@ -1637,7 +1573,6 @@
 			/** ---------------------- Auto-pairing for input fields ---------------------- */
 			function enableAutoPair(inputEl) {
 				const pairs = { '[': ']', '{': '}', '(': ')', '"': '"', "'": "'", '`': '`' };
-
 				inputEl.addEventListener('keydown', (e) => {
 					const start = inputEl.selectionStart;
 					const end = inputEl.selectionEnd;
@@ -1660,10 +1595,7 @@
 								inputEl.value.slice(0, start) + e.key + closeChar + inputEl.value.slice(end);
 							inputEl.selectionStart = inputEl.selectionEnd = start + 1;
 						}
-					}
-
-					// Closing characters
-					else if (Object.values(pairs).includes(e.key)) {
+					} else if (Object.values(pairs).includes(e.key)) {
 						if (nextChar === e.key) {
 							e.preventDefault();
 							inputEl.selectionStart = inputEl.selectionEnd = start + 1;
