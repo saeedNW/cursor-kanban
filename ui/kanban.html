@@ -564,7 +564,11 @@
 					<li><kbd>Enter</kbd> in search → Next match</li>
 					<li><kbd>Shift</kbd>+<kbd>Enter</kbd> in search → Previous match</li>
 					<li><kbd>Esc</kbd> → Close any open modal or the search panel</li>
-					<li><kbd>Enter</kbd> on the "Add Task" or "Add Column" modal input → trigger add</li>
+					<li>
+						<kbd>Enter</kbd> in the task, column title input or <kbd>Ctrl</kbd>+<kbd>Enter</kbd> in
+						the description → Add Task / Column
+					</li>
+					<li><kbd>Enter</kbd> in the column name input → Add Column</li>
 					<li>Double‑click a task priority badge → edit priority</li>
 					<li>Drag a column's handle (<code>⋮⋮</code>) → reorder columns</li>
 					<li>Drag tasks within or across boards to move them</li>
@@ -1245,6 +1249,14 @@
 				notesInput.value = '';
 			}
 
+			// Ctrl+Enter on description textarea adds task (new)
+			notesInput.addEventListener('keydown', (e) => {
+				if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+					e.preventDefault();
+					addBtn.click();
+				}
+			});
+
 			/** ---------------------- Comment Adding Logic ---------------------- */
 			const newCommentInput = document.getElementById('new-comment-input');
 			const addCommentBtn = document.getElementById('add-comment-btn');
@@ -1315,7 +1327,6 @@
 			addInput.addEventListener('keypress', (e) => {
 				if (e.key === 'Enter') addBtn.click();
 			});
-			// No need to listen on addColInput anymore; we have the modal's own keypress.
 
 			// ESC key closes modals (including help, column, task)
 			document.addEventListener('keydown', (e) => {
