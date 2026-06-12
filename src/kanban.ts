@@ -34,6 +34,7 @@ export class Kanban {
 	/**
 	 * Add a new task to a column.
 	 * If the column does not exist, it is created automatically.
+	 * The task is added at the **top** (index 0) of the column.
 	 * @param column Name of the column
 	 * @param text Task description
 	 * @param priority Task priority ('Low' | 'Medium' | 'High'), default 'Medium'
@@ -43,7 +44,8 @@ export class Kanban {
 		if (!this.tasks[column]) {
 			this.tasks[column] = [];
 		}
-		this.tasks[column].push({ text, priority, done: false, notes, id: crypto.randomUUID() });
+		// Insert at the beginning so new tasks appear at the top of the column
+		this.tasks[column].unshift({ text, priority, done: false, notes, id: crypto.randomUUID() });
 		this.save();
 	}
 
