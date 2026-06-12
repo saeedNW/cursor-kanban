@@ -267,6 +267,16 @@ function openKanbanPanel(filePath: string, title: string) {
 				}
 				break;
 
+			case 'updateNotes':
+				if (
+					message.column !== undefined &&
+					message.index !== undefined &&
+					message.notes !== undefined
+				) {
+					kanban.setTaskNotes(message.column, message.index, message.notes);
+				}
+				break;
+
 			case 'moveAcrossBoards':
 				try {
 					const moved = moveTaskBetweenFiles(

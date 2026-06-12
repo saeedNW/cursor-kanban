@@ -558,6 +558,7 @@
 					</li>
 					<li><kbd>Enter</kbd> in the column name input → Add Column</li>
 					<li>Double‑click a task priority badge → edit priority</li>
+					<li>Double‑click the description area in Task Info → edit description</li>
 					<li>Drag a column's handle (<code>⋮⋮</code>) → reorder columns</li>
 					<li>Drag tasks within or across boards to move them</li>
 				</ul>
@@ -1000,19 +1001,80 @@
 				document.getElementById('info-status').textContent = column;
 
 				const descEl = document.getElementById('info-description');
-				if (task.notes) {
-					const lines = task.notes.split('\n');
-					descEl.innerHTML = lines
-						.map((line) => {
-							const p = document.createElement('p');
-							p.style.margin = '7px 0';
-							applyDirection(p, line);
-							return p.outerHTML;
-						})
-						.join('');
-				} else {
-					descEl.textContent = '(No description)';
+				// Function to render the description content (used for both view and after edit)
+				function renderDescription(notes) {
+					if (notes) {
+						const lines = notes.split('\n');
+						descEl.innerHTML = lines
+							.map((line) => {
+								const p = document.createElement('p');
+								p.style.margin = '7px 0';
+								applyDirection(p, line);
+								return p.outerHTML;
+							})
+							.join('');
+					} else {
+						descEl.textContent = '(No description)';
+					}
 				}
+				renderDescription(task.notes);
+
+				// Double‑click the description to edit it
+				descEl.ondblclick = (e) => {
+					e.preventDefault();
+					e.stopPropagation();
+
+					// Replace the description with a textarea
+					const textarea = document.createElement('textarea');
+					textarea.style.width = '100%';
+					textarea.style.minHeight = '120px';
+					textarea.style.padding = '8px';
+					textarea.style.border = '1px solid var(--border)';
+					textarea.style.borderRadius = '4px';
+					textarea.style.background = 'var(--task-bg)';
+					textarea.style.color = 'var(--text)';
+					textarea.style.fontSize = '0.9rem';
+					textarea.style.resize = 'vertical';
+					textarea.value = task.notes || '';
+					descEl.innerHTML = '';
+					descEl.appendChild(textarea);
+					textarea.focus();
+
+					const commit = () => {
+						const newNotes = textarea.value.trim();
+						if (newNotes !== (task.notes || '')) {
+							vscode.postMessage({
+								command: 'updateNotes',
+								column,
+								index: taskIndex,
+								notes: newNotes,
+							});
+						}
+						// Re-render description (will be updated on next 'update' message)
+						// But for immediate feedback, update locally
+						task.notes = newNotes;
+						renderDescription(task.notes);
+					};
+
+					const cancel = () => {
+						// Revert to original view
+						renderDescription(task.notes);
+					};
+
+					textarea.addEventListener('keydown', (ev) => {
+						if (ev.key === 'Escape') {
+							ev.preventDefault();
+							cancel();
+						} else if ((ev.ctrlKey || ev.metaKey) && ev.key === 'Enter') {
+							ev.preventDefault();
+							commit();
+						}
+					});
+
+					textarea.addEventListener('blur', () => {
+						commit();
+					});
+				};
 
 				const commentsEl = document.getElementById('info-comments');
 				commentsEl.innerHTML = '';
@@ -1325,9 +1387,9 @@
 				}
 			});
 
-			// Set board title if the workspace name is provided
+			// Set board title – workspaceName already contains the full title (e.g., "My Project - Kanban Board")
 			if (typeof workspaceName !== 'undefined') {
-				document.getElementById('board-title').textContent = workspaceName + ' Kanban Board';
+				document.getElementById('board-title').textContent = workspaceName;
 			}
 
 			// ---------- Theme management ----------

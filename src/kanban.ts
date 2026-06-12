@@ -211,6 +211,21 @@ export class Kanban {
 	}
 
 	/**
+	 * Update the notes (description) of a task.
+	 * @param column Column name
+	 * @param index Task index
+	 * @param notes New notes text (empty string will clear the notes)
+	 */
+	setTaskNotes(column: string, index: number, notes: string) {
+		const task = this.tasks[column]?.[index];
+		if (!task) {
+			return;
+		}
+		task.notes = notes || undefined;
+		this.save();
+	}
+
+	/**
 	 * Add a new column if it does not already exist.
 	 * @param name Column name
 	 */
