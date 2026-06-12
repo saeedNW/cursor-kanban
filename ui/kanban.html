@@ -458,6 +458,36 @@
 			#new-column-name {
 				width: 90% !important;
 			}
+
+			/* ---------------------- Log Modal specific ---------------------- */
+			.log-list {
+				margin: 0;
+				padding: 0;
+				list-style: none;
+				max-height: 400px;
+				overflow-y: auto;
+				scrollbar-width: thin;
+				scrollbar-color: #888 #f1f1f1;
+			}
+
+			.log-list li {
+				padding: 6px 8px;
+				border-bottom: 1px solid var(--border);
+				font-size: 0.85rem;
+				display: flex;
+				justify-content: space-between;
+			}
+
+			.log-list li:last-child {
+				border-bottom: none;
+			}
+
+			.log-time {
+				color: var(--text-light);
+				flex-shrink: 0;
+				margin-left: 10px;
+				font-size: 0.75rem;
+			}
 		</style>
 	</head>
 	<body>
@@ -470,6 +500,7 @@
 				🌙 Dark
 			</button>
 			<button id="help-btn" class="btn-secondary" title="Show keyboard shortcuts">❓ Help</button>
+			<button id="log-btn" class="btn-secondary" title="Recent activity log">📋 Log</button>
 		</div>
 
 		<!-- Find panel -->
@@ -568,6 +599,19 @@
 			</div>
 		</div>
 
+		<!-- Log Modal -->
+		<div id="log-modal" class="modal-backdrop">
+			<div class="modal" style="max-width: 550px">
+				<div class="modal-header">Recent Activity (last 15)</div>
+				<ul id="log-list" class="log-list">
+					<li>No activity recorded yet.</li>
+				</ul>
+				<div class="modal-actions">
+					<button id="close-log" class="btn-secondary">Close</button>
+				</div>
+			</div>
+		</div>
+
 		<!-- Add Column Modal -->
 		<div id="column-modal" class="modal-backdrop">
 			<div class="modal" style="max-width: 400px">
@@ -606,6 +650,60 @@
 
 			/** Current tasks snapshot */
 			let currentTasks = {};
+
+			// ---------- Activity Log ----------
+			/** Maximum entries to keep in the log */
+			const MAX_LOG_ENTRIES = 15;
+			/** Array of { time: string, description: string } */
+			let actionLog = [];
+
+			/**
+			 * Record a new action in the log and trim to MAX_LOG_ENTRIES.
+			 * @param {string} description - Human-readable description of the action
+			 */
+			function logAction(description) {
+				const now = new Date();
+				const time = now.toLocaleTimeString(undefined, {
+					hour: '2-digit',
+					minute: '2-digit',
+					second: '2-digit',
+				});
+				actionLog.push({ time, description });
+				if (actionLog.length > MAX_LOG_ENTRIES) {
+					actionLog = actionLog.slice(-MAX_LOG_ENTRIES);
+				}
+			}
+
+			/** Update the log modal's list with current entries */
+			function renderLogModal() {
+				const listEl = document.getElementById('log-list');
+				listEl.innerHTML = '';
+				if (actionLog.length === 0) {
+					const li = document.createElement('li');
+					li.textContent = 'No activity recorded yet.';
+					listEl.appendChild(li);
+				} else {
+					// Show most recent first
+					for (let i = actionLog.length - 1; i >= 0; i--) {
+						const entry = actionLog[i];
+						const li = document.createElement('li');
+						const descSpan = document.createElement('span');
+						descSpan.textContent = entry.description;
+						const timeSpan = document.createElement('span');
+						timeSpan.className = 'log-time';
+						timeSpan.textContent = entry.time;
+						li.appendChild(descSpan);
+						li.appendChild(timeSpan);
+						listEl.appendChild(li);
+					}
+				}
+			}
+
+			/** Open the log modal and render it */
+			function openLogModal() {
+				renderLogModal();
+				document.getElementById('log-modal').style.display = 'flex';
+			}
 
 			/**
 			 * Clear all drag‑related visual indicators (placeholders, highlights, opacity)
@@ -697,8 +795,10 @@
 					const removeColBtn = document.createElement('button');
 					removeColBtn.textContent = '×';
 					removeColBtn.className = 'remove-btn';
-					removeColBtn.onclick = () =>
+					removeColBtn.onclick = () => {
+						logAction(`Removed column "${column}"`);
 						vscode.postMessage({ command: 'removeColumn', name: column });
+					};
 
 					colHeader.appendChild(dragHandle);
 					colHeader.appendChild(colTitle);
@@ -750,6 +850,7 @@
 							const toIndex = columns.indexOf(colEl);
 
 							if (fromIndex !== -1 && toIndex !== -1) {
+								logAction(`Moved column "${draggedColumnName}" to position ${toIndex + 1}`);
 								vscode.postMessage({
 									command: 'moveColumn',
 									columnName: draggedColumnName,
@@ -825,7 +926,8 @@
 							xfer.sourceFilePath !== thisBoard &&
 							xfer.taskId
 						) {
-							// Cross‑board move
+							// Cross‑board move – log with available info
+							logAction(`Moved task "${xfer.taskId}" across boards to column "${column}"`);
 							vscode.postMessage({
 								command: 'moveAcrossBoards',
 								sourceFilePath: xfer.sourceFilePath,
@@ -837,6 +939,8 @@
 							});
 						} else {
 							// Intra‑board move
+							const taskText = dragged?.task?.text || 'Unknown task';
+							logAction(`Moved task "${taskText}" from "${draggedColumn}" to "${column}"`);
 							vscode.postMessage({
 								command: 'move',
 								fromColumn: draggedColumn,
@@ -917,6 +1021,7 @@
 								select.replaceWith(badge);
 								taskEl.draggable = true;
 								if (newPriority !== task.priority) {
+									logAction(`Changed priority of "${task.text}" to ${newPriority}`);
 									vscode.postMessage({
 										command: 'updatePriority',
 										column,
@@ -938,6 +1043,7 @@
 						removeBtn.className = 'remove-btn';
 						removeBtn.onclick = (e) => {
 							e.stopPropagation();
+							logAction(`Removed task "${task.text}" from "${column}"`);
 							vscode.postMessage({ command: 'remove', column, index });
 						};
 
@@ -1024,7 +1130,6 @@
 					e.preventDefault();
 					e.stopPropagation();
 
-					// Replace the description with a textarea
 					const textarea = document.createElement('textarea');
 					textarea.style.width = '100%';
 					textarea.style.minHeight = '120px';
@@ -1043,6 +1148,7 @@
 					const commit = () => {
 						const newNotes = textarea.value.trim();
 						if (newNotes !== (task.notes || '')) {
+							logAction(`Updated description of "${task.text}"`);
 							vscode.postMessage({
 								command: 'updateNotes',
 								column,
@@ -1050,14 +1156,11 @@
 								notes: newNotes,
 							});
 						}
-						// Re-render description (will be updated on next 'update' message)
-						// But for immediate feedback, update locally
 						task.notes = newNotes;
 						renderDescription(task.notes);
 					};
 
 					const cancel = () => {
-						// Revert to original view
 						renderDescription(task.notes);
 					};
 
@@ -1112,6 +1215,7 @@
 							e.preventDefault();
 							e.stopPropagation();
 							if (window.currentEditingTask) {
+								logAction(`Removed comment from "${task.text}"`);
 								vscode.postMessage({
 									command: 'removeComment',
 									column: window.currentEditingTask.column,
@@ -1160,6 +1264,7 @@
 						infoPriorityEl.style.backgroundColor = PRIORITY_COLORS[newPriority] || '#F59E0B';
 						restore();
 						if (window.currentEditingTask && newPriority !== task.priority) {
+							logAction(`Changed priority of "${task.text}" to ${newPriority}`);
 							vscode.postMessage({
 								command: 'updatePriority',
 								column: window.currentEditingTask.column,
@@ -1219,6 +1324,7 @@
 				const column = columnSelect.value;
 				const notes = notesInput.value.trim();
 				if (!text || !column) return;
+				logAction(`Added task "${text}" to "${column}"`);
 				vscode.postMessage({ command: 'add', column, text, priority, notes });
 				taskModal.style.display = 'none';
 				resetTaskModal();
@@ -1245,6 +1351,7 @@
 
 			addCommentBtn.addEventListener('click', () => {
 				if (window.currentEditingTask && newCommentInput.value.trim()) {
+					logAction(`Added comment to "${window.currentEditingTask.task.text}"`);
 					vscode.postMessage({
 						command: 'addComment',
 						column: window.currentEditingTask.column,
@@ -1279,6 +1386,7 @@
 			addColumnConfirmBtn.addEventListener('click', () => {
 				const name = newColumnNameInput.value.trim();
 				if (!name) return;
+				logAction(`Added column "${name}"`);
 				vscode.postMessage({ command: 'addColumn', name });
 				columnModal.style.display = 'none';
 				newColumnNameInput.value = '';
@@ -1316,6 +1424,10 @@
 						const helpModal = document.getElementById('help-modal');
 						if (helpModal.style.display === 'flex') {
 							helpModal.style.display = 'none';
+						}
+						const logModal = document.getElementById('log-modal');
+						if (logModal.style.display === 'flex') {
+							logModal.style.display = 'none';
 						}
 					}
 				}
@@ -1427,6 +1539,17 @@
 			closeHelpBtn.addEventListener('click', () => (helpModal.style.display = 'none'));
 			helpModal.addEventListener('click', (e) => {
 				if (e.target === helpModal) helpModal.style.display = 'none';
+			});
+
+			// ---------- Log modal ----------
+			const logBtn = document.getElementById('log-btn');
+			const logModal = document.getElementById('log-modal');
+			const closeLogBtn = document.getElementById('close-log');
+
+			logBtn.addEventListener('click', openLogModal);
+			closeLogBtn.addEventListener('click', () => (logModal.style.display = 'none'));
+			logModal.addEventListener('click', (e) => {
+				if (e.target === logModal) logModal.style.display = 'none';
 			});
 
 			// ---------- Find / search in task titles ----------
