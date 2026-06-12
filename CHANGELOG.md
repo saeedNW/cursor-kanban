@@ -4,6 +4,31 @@ All notable changes to the "cursor-kanban" extension will be documented in this 
 
 Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
 
+---
+
+## [0.3.0] - 2026-06-12
+
+### Added
+
+- **Activity log** (last 15 actions) accessible via a 📋 Log button; logs task creation, deletion, moves, priority changes, comments, and more.
+- Edit task description directly from the Task Info modal (double‑click the description area).
+- New task added at the **top** of the chosen column instead of the bottom.
+- Add Column modal (replaces inline input) with keyboard chord Ctrl+G then Ctrl+N.
+- Help button that opens a modal listing all keyboard shortcuts.
+- Ctrl+Enter in the task description field adds the task (works in both creation modal and description editing).
+
+### Changed
+
+- Board title no longer duplicates “Kanban Board” when opening from a file.
+- Board layout now only scrolls the task list area vertically; title and controls remain fixed.
+- Column modal uses a dedicated dialog instead of an inline input.
+
+### Fixed
+
+- Removed duplicate “Kanban Board” suffix in the header.
+
+---
+
 ## [0.2.1] - 2025-11-28
 
 ### Changed
@@ -13,6 +38,8 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 ### Fixed
 
 - Prevented extension loading errors caused by version mismatch between the extension and VS Code.
+
+---
 
 ## [0.2.0] - 2025-10-01
 
@@ -39,6 +66,8 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 - Ensured column order persistence when reordering columns
 - Robust handling of multi‑line notes and comment round‑trips
 - Safer drag state cleanup when dropping across panels
+
+---
 
 ## [0.1.0] - 2025-09-11
 
@@ -75,6 +104,8 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 - Enhanced workspace folder validation
 - Ensure `tasks.md` always contains a `Done` column if missing
 - Preserve multi-line notes read/write formatting
+
+---
 
 ## [0.0.1] - 2025-09-10
 

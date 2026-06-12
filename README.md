@@ -25,6 +25,7 @@ Cursor Kanban renders a clean, interactive Kanban view powered by a simple Markd
 - **Workspace Title**: Shows the current workspace name at the top of the board.
 - **Quick Remove**: Remove tasks with a single click.
 - **Single command**: Open the board from the Command Palette.
+- **Activity Log**: View the last 15 board actions (add, move, delete, etc.) in a log modal.
 
 ## How it works
 
@@ -39,12 +40,10 @@ Cursor Kanban renders a clean, interactive Kanban view powered by a simple Markd
 You can install the extension in two ways:
 
 1. From VSIX
-
    - Download or build the `.vsix` file.
    - In VS Code/Cursor: Extensions panel → ••• menu → "Install from VSIX..." → select the file.
 
 2. From source (development)
-
    - Clone the repo and run `npm install`.
    - Press F5 to launch the Extension Development Host.
 
