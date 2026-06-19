@@ -6,6 +6,14 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ---
 
+## [0.3.1] - 2026-06-19
+
+### Added
+
+- **Status change from Task Info modal**: A dropdown in the Task Info modal lets users move a task to any column directly, without drag and drop.
+
+---
+
 ## [0.3.0] - 2026-06-12
 
 ### Added

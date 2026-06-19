@@ -547,7 +547,7 @@
 					<p id="info-title"></p>
 				</div>
 				<div><strong>Priority:</strong> <span id="info-priority"></span></div>
-				<div><strong>Status:</strong> <span id="info-status"></span></div>
+				<div style="display:flex;align-items:center;gap:8px"><strong>Status:</strong> <select id="info-status" style="font-size:0.9rem;padding:2px 6px;border-radius:4px;background:var(--task-bg);color:var(--text);border:1px solid var(--border)"></select></div>
 				<div><strong>Description:</strong></div>
 				<div id="info-description"></div>
 				<div><strong>Comments:</strong></div>
@@ -1104,7 +1104,33 @@
 				infoPriorityEl.style.color = 'white';
 				infoPriorityEl.style.backgroundColor = PRIORITY_COLORS[task.priority] || '#F59E0B';
 
-				document.getElementById('info-status').textContent = column;
+				const statusSelect = document.getElementById('info-status');
+				statusSelect.innerHTML = '';
+				Object.keys(currentTasks).forEach((col) => {
+					const opt = document.createElement('option');
+					opt.value = col;
+					opt.textContent = col;
+					if (col === column) opt.selected = true;
+					statusSelect.appendChild(opt);
+				});
+				statusSelect.onchange = () => {
+					const newColumn = statusSelect.value;
+					if (newColumn === column) return;
+					logAction(`Moved task "${task.text}" from "${column}" to "${newColumn}"`);
+					vscode.postMessage({
+						command: 'move',
+						fromColumn: column,
+						toColumn: newColumn,
+						fromIndex: taskIndex,
+						toIndex: 0,
+					});
+					column = newColumn;
+					taskIndex = 0;
+					if (window.currentEditingTask) {
+						window.currentEditingTask.column = newColumn;
+						window.currentEditingTask.taskIndex = 0;
+					}
+				};
 
 				const descEl = document.getElementById('info-description');
 				// Function to render the description content (used for both view and after edit)

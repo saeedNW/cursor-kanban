@@ -19,6 +19,7 @@ Cursor Kanban renders a clean, interactive Kanban view powered by a simple Markd
 - **Keyboard Chord**: Ctrl/Cmd+G then Ctrl/Cmd+T opens the New Task modal.
 - **Add/Remove Columns**: Create or delete columns directly from the board.
 - **Task Info Modal**: Click a task title to view priority, status, multi-line notes, and comments.
+- **Status Change from Modal**: Move a task to any column via the Status dropdown inside the Task Info modal.
 - **Auto Text Direction**: Detects RTL/LTR from the first character for titles and notes.
 - **Input Auto‑Pairing**: Smart pairing for (), {}, [], quotes, and backticks in inputs.
 - **Keyboard Shortcuts**: Enter to submit inputs; Esc to close modals.
